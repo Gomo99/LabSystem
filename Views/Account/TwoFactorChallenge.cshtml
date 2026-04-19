@@ -1,0 +1,379 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Two-Factor Authentication – NMB-HLabSys";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --navy: #0A1628; --navy-mid: #0F2040;
+            --teal: #0ECECE; --teal-dark: #09a8a8;
+            --teal-glow: rgba(14,206,206,.18);
+            --white: #FFFFFF; --off-white: #e8f0f7;
+            --muted: #7a99bb; --danger: #f25c5c;
+            --card-bg: rgba(15,32,64,.72); --border: rgba(14,206,206,.22);
+        }
+
+        html, body {
+            height: 100%; font-family: 'Outfit', sans-serif;
+            background: var(--navy); color: var(--white);
+        }
+
+        .bg-scene {
+            position: fixed; inset: 0; z-index: 0;
+            background: linear-gradient(135deg, #060e1c, #0A1628 50%, #0d2040);
+        }
+
+        .bg-scene::before {
+            content: ''; position: absolute;
+            width: 700px; height: 700px; top: -150px; left: 50%; transform: translateX(-50%);
+            background: radial-gradient(circle, rgba(14,206,206,.1) 0%, transparent 65%);
+            animation: pulse 9s ease-in-out infinite alternate;
+        }
+
+        @@keyframes pulse {
+            from { transform: translateX(-50%) scale(1); }
+            to   { transform: translateX(-50%) scale(1.25); }
+        }
+
+        .grid-overlay {
+            position: fixed; inset: 0; z-index: 0;
+            background-image:
+                linear-gradient(rgba(14,206,206,.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,206,206,.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        .page-wrapper {
+            position: relative; z-index: 1; height: 100vh;
+            display: flex; align-items: center; justify-content: center; padding: 30px 20px;
+        }
+
+        .card {
+            width: 100%; max-width: 420px;
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 24px; padding: 52px 44px;
+            backdrop-filter: blur(24px);
+            box-shadow: 0 40px 80px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
+            text-align: center;
+            animation: fadeUp .65s cubic-bezier(.22,1,.36,1) both;
+        }
+
+        @@keyframes fadeUp {
+            from { opacity: 0; transform: translateY(28px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Shield icon */
+        .shield-wrap {
+            position: relative; width: 80px; height: 80px;
+            margin: 0 auto 26px;
+        }
+
+        .shield-ring {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: rgba(14,206,206,.1); border: 2px solid rgba(14,206,206,.3);
+            display: flex; align-items: center; justify-content: center;
+            animation: shieldPulse 3s ease-in-out infinite;
+        }
+
+        .shield-ring i { font-size: 32px; color: var(--teal); }
+
+        @@keyframes shieldPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(14,206,206,.25); }
+            50%       { box-shadow: 0 0 0 14px rgba(14,206,206,.0); }
+        }
+
+        h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 10px; }
+
+        .subtitle {
+            font-size: .88rem; color: var(--muted); line-height: 1.65; margin-bottom: 36px;
+        }
+
+        /* ── OTP DIGIT INPUTS ── */
+        .otp-row {
+            display: flex; gap: 10px; justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .otp-digit {
+            width: 52px; height: 60px;
+            background: rgba(255,255,255,.05);
+            border: 1.5px solid rgba(255,255,255,.12);
+            border-radius: 12px;
+            color: var(--white); font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem; font-weight: 700; text-align: center;
+            outline: none; caret-color: var(--teal);
+            transition: border-color .25s, box-shadow .25s, background .25s;
+        }
+
+        .otp-digit:focus {
+            border-color: var(--teal); background: rgba(14,206,206,.07);
+            box-shadow: 0 0 0 4px rgba(14,206,206,.12);
+        }
+
+        .otp-digit.filled { border-color: rgba(14,206,206,.45); }
+
+        /* hidden actual input */
+        #codeInput { display: none; }
+
+        /* timer */
+        .timer-bar {
+            height: 3px; border-radius: 3px;
+            background: rgba(255,255,255,.07); margin-bottom: 24px; overflow: hidden;
+        }
+
+        .timer-fill {
+            height: 100%; border-radius: 3px;
+            background: linear-gradient(90deg, var(--teal), var(--teal-dark));
+            width: 100%;
+            transition: width 1s linear;
+        }
+
+        .timer-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: .78rem; color: var(--muted); margin-bottom: 26px;
+        }
+
+        .timer-row .time-left { color: var(--teal); font-weight: 600; }
+        .timer-row .time-left.warn { color: #f5a623; }
+        .timer-row .time-left.exp  { color: var(--danger); }
+
+        /* validation error */
+        .error-box {
+            background: rgba(242,92,92,.08); border: 1px solid rgba(242,92,92,.25);
+            border-radius: 10px; padding: 10px 14px;
+            font-size: .84rem; color: var(--danger); text-align: left;
+            margin-bottom: 18px; display: none;
+        }
+
+        .error-box i { margin-right: 6px; }
+
+        /* Button */
+        .btn-primary {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+            color: var(--navy); font-family: 'Outfit', sans-serif;
+            font-size: .98rem; font-weight: 700; cursor: pointer;
+            transition: transform .15s, box-shadow .25s, filter .2s;
+            box-shadow: 0 4px 24px rgba(14,206,206,.35);
+            margin-bottom: 20px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px); filter: brightness(1.06);
+            box-shadow: 0 8px 32px rgba(14,206,206,.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: .5; cursor: not-allowed;
+            transform: none; filter: none; box-shadow: none;
+        }
+
+        /* resend + back */
+        .action-row {
+            display: flex; flex-direction: column; gap: 12px; align-items: center;
+        }
+
+        .resend-btn {
+            font-size: .86rem; color: var(--muted); background: none; border: none;
+            cursor: pointer; font-family: 'Outfit', sans-serif;
+            transition: color .2s; padding: 0;
+        }
+
+        .resend-btn:hover { color: var(--teal); }
+        .resend-btn:disabled { opacity: .45; cursor: default; }
+
+        .back-link {
+            display: flex; align-items: center; gap: 7px;
+            font-size: .86rem; color: var(--muted); text-decoration: none; transition: color .2s;
+        }
+
+        .back-link:hover { color: var(--teal); }
+
+        /* Authenticator hint */
+        .auth-hint {
+            background: rgba(14,206,206,.05); border: 1px solid rgba(14,206,206,.13);
+            border-radius: 11px; padding: 13px 16px;
+            font-size: .8rem; color: var(--muted); text-align: left;
+            display: flex; align-items: flex-start; gap: 10px; margin-bottom: 26px;
+        }
+
+        .auth-hint i { color: var(--teal); margin-top: 2px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div class="bg-scene"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="page-wrapper">
+        <div class="card">
+
+            <div class="shield-wrap">
+                <div class="shield-ring"><i class="fas fa-shield-halved"></i></div>
+            </div>
+
+            <h2>Two-Factor Auth</h2>
+            <p class="subtitle">
+                Enter the 6-digit code from your authenticator app to complete sign-in.
+            </p>
+
+            <div class="auth-hint">
+                <i class="fas fa-mobile-screen"></i>
+                <span>Open your authenticator app (e.g. Google Authenticator or Microsoft Authenticator) and enter the current code shown for your NMB-HLabSys account.</span>
+            </div>
+
+            <!-- Timer -->
+            <div class="timer-bar">
+                <div class="timer-fill" id="timerFill"></div>
+            </div>
+            <div class="timer-row">
+                <span>Code refreshes every 30 seconds</span>
+                <span class="time-left" id="timerText">30s</span>
+            </div>
+
+            <!-- Error display -->
+            <div class="error-box" id="errorBox">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span id="errorText">Invalid or expired code. Please try again.</span>
+            </div>
+
+            <form asp-action="TwoFactorChallenge" asp-controller="Account" method="post" id="twoFaForm">
+                @Html.AntiForgeryToken()
+
+                <!-- OTP digit boxes (visual) -->
+                <div class="otp-row" id="otpRow">
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                </div>
+
+                <!-- Hidden actual input that gets submitted -->
+                <input type="text" name="code" id="codeInput" />
+
+                <button type="submit" class="btn-primary" id="submitBtn" disabled>
+                    <i class="fas fa-check-circle" style="margin-right:8px;"></i>Verify &amp; Sign In
+                </button>
+            </form>
+
+            <div class="action-row">
+                <button class="resend-btn" id="resendBtn" disabled onclick="startResend()">
+                    <i class="fas fa-rotate-left" style="margin-right:5px;"></i>
+                    Resend code <span id="resendCountdown"></span>
+                </button>
+                <a asp-action="Login" asp-controller="Account" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Back to Sign In
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── OTP Digit Inputs behaviour ──
+        const digits = document.querySelectorAll('.otp-digit');
+        const codeInput = document.getElementById('codeInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorBox = document.getElementById('errorBox');
+
+        digits.forEach((inp, idx) => {
+            inp.addEventListener('keydown', e => {
+                if (e.key === 'Backspace') {
+                    inp.value = '';
+                    inp.classList.remove('filled');
+                    if (idx > 0) digits[idx - 1].focus();
+                    updateCode();
+                }
+            });
+
+            inp.addEventListener('input', e => {
+                const val = e.target.value.replace(/\D/g, '');
+                if (!val) { inp.value = ''; inp.classList.remove('filled'); updateCode(); return; }
+
+                // Handle paste of full code into first box
+                if (val.length > 1) {
+                    const chars = val.slice(0, 6).split('');
+                    chars.forEach((c, i) => {
+                        if (digits[i]) { digits[i].value = c; digits[i].classList.add('filled'); }
+                    });
+                    digits[Math.min(chars.length, 5)].focus();
+                    updateCode();
+                    return;
+                }
+
+                inp.value = val;
+                inp.classList.add('filled');
+                if (idx < 5) digits[idx + 1].focus();
+                updateCode();
+            });
+
+            inp.addEventListener('focus', () => inp.select());
+        });
+
+        function updateCode() {
+            const code = Array.from(digits).map(d => d.value).join('');
+            codeInput.value = code;
+            submitBtn.disabled = code.length !== 6;
+            errorBox.style.display = 'none';
+        }
+
+        // ── TOTP Timer ──
+        const fill = document.getElementById('timerFill');
+        const timerText = document.getElementById('timerText');
+        const resendBtn = document.getElementById('resendBtn');
+        const resendCD = document.getElementById('resendCountdown');
+
+        function updateTimer() {
+            const now = Math.floor(Date.now() / 1000);
+            const rem = 30 - (now % 30);
+            const pct = (rem / 30) * 100;
+
+            fill.style.width = pct + '%';
+            timerText.textContent = rem + 's';
+            timerText.className = 'time-left' + (rem <= 5 ? ' exp' : rem <= 10 ? ' warn' : '');
+        }
+
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // Resend countdown (30s)
+        let resendSec = 30;
+        const resendInterval = setInterval(() => {
+            resendSec--;
+            resendCD.textContent = resendSec > 0 ? '(' + resendSec + 's)' : '';
+            if (resendSec <= 0) {
+                clearInterval(resendInterval);
+                resendBtn.disabled = false;
+                resendCD.textContent = '';
+            }
+        }, 1000);
+
+        function startResend() {
+            resendBtn.disabled = true;
+            resendSec = 30;
+            resendCD.textContent = '(30s)';
+            // Submit resend request – extend as needed
+            alert('A new code has been sent to your authenticator app.');
+        }
+
+        // Show server-side error if form was re-submitted with bad code
+        @if (ViewBag.Error != null)
+        {
+            <text>
+            document.getElementById('errorBox').style.display = 'block';
+            document.getElementById('errorText').textContent = '@ViewBag.Error';
+            </text>
+        }
+    </script>
+</body>
+</html>

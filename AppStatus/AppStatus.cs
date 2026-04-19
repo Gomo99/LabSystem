@@ -24,5 +24,40 @@
     }
 
 
+    public enum OrderStatus
+    {
+        Ordered,
+        PartiallyComplete,
+        Complete,
+        Cancelled
+    }
+
+    public enum OrderItemStatus
+    {
+        Ordered,
+        Received,
+        Cancelled
+    }
+
+    public enum Urgency
+    {
+        Routine,
+        Urgent,
+        Stat
+    }
+
+    public enum RequestStatus
+    {
+        Submitted,
+        SamplesReceived,
+        InProgress,
+        Completed,
+        ReleasedByDoctor,
+        Cancelled,
+        Verified
+    }
+
+
+
 
 }

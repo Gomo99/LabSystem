@@ -6,7 +6,7 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
     {
         [Required]
         [Display(Name = "Username")]
-        public string UserName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
 
         [Required]
         [DataType(DataType.Password)]

@@ -1,0 +1,576 @@
+@model LaboratoryTestRequestManagementSystem.ViewModel.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Sign In – NMB-HLabSys";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --navy:       #0A1628;
+            --navy-mid:   #0F2040;
+            --navy-light: #162d52;
+            --teal:       #0ECECE;
+            --teal-dark:  #09a8a8;
+            --teal-glow:  rgba(14,206,206,.18);
+            --white:      #FFFFFF;
+            --off-white:  #e8f0f7;
+            --muted:      #7a99bb;
+            --danger:     #f25c5c;
+            --success:    #2ecc71;
+            --card-bg:    rgba(15,32,64,.72);
+            --border:     rgba(14,206,206,.22);
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Outfit', sans-serif;
+            background: var(--navy);
+            color: var(--white);
+            overflow-x: hidden;
+        }
+
+        /* ── ANIMATED BACKGROUND ── */
+        .bg-scene {
+            position: fixed; inset: 0; z-index: 0;
+            background: linear-gradient(135deg, #060e1c 0%, #0A1628 45%, #0d2040 100%);
+            overflow: hidden;
+        }
+
+        .bg-scene::before {
+            content: '';
+            position: absolute;
+            width: 700px; height: 700px;
+            top: -200px; left: -200px;
+            background: radial-gradient(circle, rgba(14,206,206,.12) 0%, transparent 70%);
+            animation: pulseOrb 8s ease-in-out infinite alternate;
+        }
+
+        .bg-scene::after {
+            content: '';
+            position: absolute;
+            width: 500px; height: 500px;
+            bottom: -150px; right: -100px;
+            background: radial-gradient(circle, rgba(14,206,206,.08) 0%, transparent 70%);
+            animation: pulseOrb 10s ease-in-out infinite alternate-reverse;
+        }
+
+        @@keyframes pulseOrb {
+            from { transform: scale(1) translate(0,0); }
+            to   { transform: scale(1.3) translate(30px,20px); }
+        }
+
+        /* Grid lines overlay */
+        .grid-overlay {
+            position: fixed; inset: 0; z-index: 0;
+            background-image:
+                linear-gradient(rgba(14,206,206,.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14,206,206,.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* ── PAGE LAYOUT ── */
+        .page-wrapper {
+            position: relative; z-index: 1;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        /* ── LEFT PANEL ── */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 70px;
+            animation: slideInLeft .7s cubic-bezier(.22,1,.36,1) both;
+        }
+
+        @@keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 64px;
+        }
+
+        .brand-logo .icon-ring {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: var(--navy);
+            box-shadow: 0 0 24px var(--teal-glow);
+        }
+
+        .brand-logo .brand-text {
+            line-height: 1.2;
+        }
+
+        .brand-logo .brand-name {
+            font-size: 1.05rem; font-weight: 700;
+            letter-spacing: .04em; color: var(--white);
+        }
+
+        .brand-logo .brand-sub {
+            font-size: .72rem; font-weight: 400;
+            color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+        }
+
+        .hero-heading {
+            font-size: clamp(2rem, 3vw, 3rem);
+            font-weight: 700;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            color: var(--white);
+        }
+
+        .hero-heading span {
+            color: var(--teal);
+        }
+
+        .hero-sub {
+            font-size: 1rem;
+            color: var(--muted);
+            line-height: 1.7;
+            max-width: 380px;
+            margin-bottom: 52px;
+        }
+
+        /* ── FEATURE PILLS ── */
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background: rgba(14,206,206,.05);
+            border: 1px solid var(--border);
+            transition: background .25s, border-color .25s;
+        }
+
+        .feature-item:hover {
+            background: rgba(14,206,206,.1);
+            border-color: rgba(14,206,206,.4);
+        }
+
+        .feature-item .f-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(14,206,206,.12);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--teal); font-size: .9rem; flex-shrink: 0;
+        }
+
+        .feature-item .f-label {
+            font-size: .88rem; font-weight: 500; color: var(--off-white);
+        }
+
+        /* ── RIGHT PANEL ── */
+        .right-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 60px;
+            animation: slideInRight .7s cubic-bezier(.22,1,.36,1) .1s both;
+        }
+
+       @@keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .card {
+            width: 100%;
+            max-width: 440px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 44px 40px;
+            backdrop-filter: blur(24px);
+            box-shadow: 0 40px 80px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
+        }
+
+        .card-header {
+            margin-bottom: 36px;
+        }
+
+        .card-header h2 {
+            font-size: 1.7rem; font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .card-header p {
+            font-size: .88rem; color: var(--muted);
+        }
+
+        /* ── FORM ELEMENTS ── */
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            font-size: .78rem;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap .input-icon {
+            position: absolute;
+            left: 16px; top: 50%; transform: translateY(-50%);
+            color: var(--muted); font-size: .85rem;
+            pointer-events: none; transition: color .2s;
+        }
+
+        .input-wrap .toggle-pw {
+            position: absolute;
+            right: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--muted); font-size: .85rem;
+            cursor: pointer; background: none; border: none;
+            padding: 4px; transition: color .2s;
+        }
+
+        .input-wrap .toggle-pw:hover { color: var(--teal); }
+
+        .form-control {
+            width: 100%;
+            padding: 13px 16px 13px 44px;
+            background: rgba(255,255,255,.05);
+            border: 1.5px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            color: var(--white);
+            font-family: 'Outfit', sans-serif;
+            font-size: .95rem;
+            outline: none;
+            transition: border-color .25s, box-shadow .25s, background .25s;
+        }
+
+        .form-control:focus {
+            border-color: var(--teal);
+            background: rgba(14,206,206,.05);
+            box-shadow: 0 0 0 4px rgba(14,206,206,.12);
+        }
+
+        .form-control:focus + .input-icon,
+        .input-wrap:focus-within .input-icon { color: var(--teal); }
+
+        .form-control::placeholder { color: rgba(255,255,255,.25); }
+
+        .form-control.has-pw { padding-right: 46px; }
+
+        /* Validation */
+        .text-danger {
+            font-size: .78rem;
+            color: var(--danger);
+            margin-top: 6px;
+            display: block;
+        }
+
+        .validation-summary-errors {
+            background: rgba(242,92,92,.1);
+            border: 1px solid rgba(242,92,92,.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+
+        .validation-summary-errors ul {
+            list-style: none;
+            font-size: .85rem;
+            color: var(--danger);
+        }
+
+        .validation-summary-errors ul li::before {
+            content: '⚠ '; font-size: .8rem;
+        }
+
+        /* ── CHECKBOX ROW ── */
+        .row-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+
+        .check-label {
+            display: flex; align-items: center; gap: 9px;
+            font-size: .85rem; color: var(--muted); cursor: pointer;
+            user-select: none;
+        }
+
+        .check-label input[type="checkbox"] {
+            appearance: none;
+            width: 18px; height: 18px;
+            border: 1.5px solid rgba(255,255,255,.2);
+            border-radius: 5px;
+            background: rgba(255,255,255,.05);
+            cursor: pointer;
+            transition: all .2s;
+            position: relative;
+        }
+
+        .check-label input[type="checkbox"]:checked {
+            background: var(--teal);
+            border-color: var(--teal);
+        }
+
+        .check-label input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            color: var(--navy); font-size: .72rem; font-weight: 800;
+        }
+
+        .forgot-link {
+            font-size: .85rem; color: var(--teal);
+            text-decoration: none; font-weight: 500;
+            transition: opacity .2s;
+        }
+
+        .forgot-link:hover { opacity: .75; }
+
+        /* ── BUTTON ── */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+            color: var(--navy);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem; font-weight: 700;
+            letter-spacing: .04em;
+            cursor: pointer;
+            transition: transform .15s, box-shadow .25s, filter .2s;
+            box-shadow: 0 4px 24px rgba(14,206,206,.35);
+            position: relative; overflow: hidden;
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,.15), transparent);
+            opacity: 0; transition: opacity .2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(14,206,206,.5);
+            filter: brightness(1.06);
+        }
+
+        .btn-primary:hover::after { opacity: 1; }
+        .btn-primary:active { transform: translateY(0); }
+
+        /* ── DIVIDER ── */
+        .divider {
+            display: flex; align-items: center; gap: 14px;
+            margin: 28px 0; color: var(--muted); font-size: .8rem;
+        }
+
+        .divider::before, .divider::after {
+            content: ''; flex: 1;
+            height: 1px; background: rgba(255,255,255,.08);
+        }
+
+        /* ── REGISTER LINK ── */
+        .register-row {
+            text-align: center;
+            font-size: .88rem; color: var(--muted);
+        }
+
+        .register-row a {
+            color: var(--teal); font-weight: 600;
+            text-decoration: none; transition: opacity .2s;
+        }
+
+        .register-row a:hover { opacity: .75; }
+
+        /* ── FOOTER ── */
+        .page-footer {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            font-size: .72rem; color: rgba(122,153,187,.5);
+            letter-spacing: .05em; z-index: 2; white-space: nowrap;
+        }
+
+        /* ── RESPONSIVE ── */
+        @@media (max-width: 900px) {
+            .page-wrapper { grid-template-columns: 1fr; }
+            .left-panel { display: none; }
+            .right-panel { padding: 40px 24px; }
+            .card { padding: 36px 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-scene"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="page-wrapper">
+
+        <!-- ── LEFT PANEL ── -->
+        <div class="left-panel">
+            <div class="brand-logo">
+                <div class="icon-ring"><i class="fas fa-flask"></i></div>
+                <div class="brand-text">
+                    <div class="brand-name">NMB-HLabSys</div>
+                    <div class="brand-sub">Haematology Laboratory System</div>
+                </div>
+            </div>
+
+            <h1 class="hero-heading">
+                Precision Diagnostics,<br><span>Seamlessly Managed</span>
+            </h1>
+            <p class="hero-sub">
+                Nelson Mandela Bay Haematology Diagnostic Laboratories —
+                a unified platform for doctors, technicians, and patients.
+            </p>
+
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="f-icon"><i class="fas fa-file-medical"></i></div>
+                    <span class="f-label">Submit &amp; track test requests in real time</span>
+                </div>
+                <div class="feature-item">
+                    <div class="f-icon"><i class="fas fa-vials"></i></div>
+                    <span class="f-label">Streamlined sample processing workflow</span>
+                </div>
+                <div class="feature-item">
+                    <div class="f-icon"><i class="fas fa-chart-line"></i></div>
+                    <span class="f-label">Longitudinal patient result tracking &amp; reports</span>
+                </div>
+                <div class="feature-item">
+                    <div class="f-icon"><i class="fas fa-shield-halved"></i></div>
+                    <span class="f-label">Role-based access with encrypted security</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RIGHT PANEL ── -->
+        <div class="right-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Welcome back</h2>
+                    <p>Sign in with your registered e-mail address</p>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" class="validation-summary-errors" style="display:none"></div>
+
+               <form asp-action="Login" asp-controller="Account" method="post" id="loginForm">
+    @Html.AntiForgeryToken()
+
+    <!-- FIXED RETURN URL -->
+    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+    <!-- Email -->
+    <div class="form-group">
+        <label asp-for="Username" class="form-label">E-mail address</label>
+        <div class="input-wrap">
+            <i class="fas fa-envelope input-icon"></i>
+            <input asp-for="Username"
+                   type="email"
+                   class="form-control"
+                   placeholder="you@example.com"
+                   autocomplete="username"
+                   required />
+        </div>
+        <span asp-validation-for="Username" class="text-danger"></span>
+    </div>
+
+    <!-- Password -->
+    <div class="form-group">
+        <label asp-for="Password" class="form-label">Password</label>
+        <div class="input-wrap">
+            <i class="fas fa-lock input-icon"></i>
+            <input asp-for="Password"
+                   type="password"
+                   id="passwordInput"
+                   class="form-control has-pw"
+                   placeholder="••••••••"
+                   autocomplete="current-password"
+                   required />
+            <button type="button" class="toggle-pw" onclick="togglePassword()">
+                <i class="fas fa-eye" id="pwIcon"></i>
+            </button>
+        </div>
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <!-- Remember -->
+    <div class="row-between">
+        <label class="check-label">
+            <input asp-for="RememberMe" type="checkbox" />
+            Remember me
+        </label>
+
+        <a asp-action="ForgotPassword" asp-controller="Account" class="forgot-link">
+            Forgot password?
+        </a>
+    </div>
+
+    <button type="submit" class="btn-primary">
+        <i class="fas fa-arrow-right-to-bracket"></i> Sign In
+    </button>
+</form>
+
+
+
+                <div class="divider">or</div>
+
+                <div class="register-row">
+                    New patient? <a asp-action="RegisterPatient" asp-controller="Account">Create an account</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-footer">© @DateTime.Now.Year Nelson Mandela Bay Haematology Diagnostic Laboratories</div>
+
+    <script>
+        // Show/hide validation summary if errors exist
+        document.addEventListener('DOMContentLoaded', function () {
+            const vs = document.querySelector('.validation-summary-errors ul');
+            if (vs && vs.children.length > 0)
+                vs.closest('.validation-summary-errors').style.display = 'block';
+        });
+
+        function togglePassword() {
+            const inp = document.getElementById('passwordInput');
+            const icon = document.getElementById('pwIcon');
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                inp.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+    </script>
+</body>
+</html>
