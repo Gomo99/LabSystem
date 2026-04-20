@@ -12,7 +12,7 @@ namespace LaboratoryTestRequestManagementSystem.Data
         // Core user tables
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Patient> Patients { get; set; }
-
+        public DbSet<UserDevice> UserDevices { get; set; }
         // Medical history lookup tables
         public DbSet<MedicalCondition> MedicalConditions { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
@@ -338,6 +338,14 @@ namespace LaboratoryTestRequestManagementSystem.Data
                 .HasOne(trh => trh.TestRequest)
                 .WithMany()
                 .HasForeignKey(trh => trh.TestRequestId);
+
+
+            modelBuilder.Entity<UserDevice>()
+    .HasIndex(ud => ud.DeviceId)
+    .IsUnique();
+
+
+
 
             // ------------------------------------------------------------
             // 5. Default Values for Status / IsActive columns

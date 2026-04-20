@@ -20,6 +20,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly LabDbContext _context;
         private readonly IEmailService _emailService;
         private readonly ITwoFactorService _twoFactorService;
+        private const string DeviceIdCookieName = ".DeviceId";
 
         public AccountController(LabDbContext context, IEmailService emailService, ITwoFactorService twoFactorService)
         {
@@ -95,11 +96,28 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
                 employee.FailedLoginAttempts = 0;
                 employee.LockoutEnd = null;
-                await _context.SaveChangesAsync(); // Save upgraded hash if needed
+                await _context.SaveChangesAsync();
 
-                // 2FA required?
+                // Get or create device record
+                string deviceId = GetOrCreateDeviceId();
+                var device = await GetOrCreateDeviceRecord(employee.Id, "Employee", deviceId,
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
+
+                // 2FA check
                 if (employee.IsTwoFactorEnabled && !string.IsNullOrEmpty(employee.TwoFactorSecretKey))
                 {
+                    if (device.IsTrusted)
+                    {
+                        // Skip 2FA for trusted device
+                        await SignInAsync(BuildEmployeeClaims(employee), model.RememberMe);
+
+                        if (employee.MustChangePassword)
+                            return RedirectToAction("ChangePassword");
+
+                        return RedirectToSavedUrl(returnUrl, employee.Role);
+                    }
+
+                    // Not trusted → go to 2FA challenge
                     TempData["2fa_pending_id"] = employee.Id.ToString();
                     TempData["2fa_pending_type"] = "Employee";
                     TempData["2fa_remember_me"] = model.RememberMe.ToString();
@@ -107,6 +125,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     return RedirectToAction("TwoFactorChallenge");
                 }
 
+                // No 2FA required
                 await SignInAsync(BuildEmployeeClaims(employee), model.RememberMe);
 
                 if (employee.MustChangePassword)
@@ -161,7 +180,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
                 patient.FailedLoginAttempts = 0;
                 patient.LockoutEnd = null;
-                await _context.SaveChangesAsync(); // Save upgraded hash if needed
+                await _context.SaveChangesAsync();
 
                 await SignInAsync(BuildPatientClaims(patient), model.RememberMe);
 
@@ -246,7 +265,19 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            await _context.SaveChangesAsync(); // Persist recovery code removal
+            // Mark device as trusted if requested
+            if (model.TrustDevice)
+            {
+                string deviceId = GetOrCreateDeviceId();
+                var device = await _context.UserDevices
+                    .FirstOrDefaultAsync(d => d.DeviceId == deviceId && d.UserId == employeeId && d.UserType == "Employee");
+                if (device != null)
+                {
+                    device.IsTrusted = true;
+                }
+            }
+
+            await _context.SaveChangesAsync(); // Persist recovery code removal and trust flag
             await SignInAsync(BuildEmployeeClaims(employee), rememberMe);
 
             TempData.Remove("2fa_pending_id");
@@ -422,10 +453,48 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         // ======================================================================
-        //  PATIENT REGISTRATION
+        //  DEVICE MANAGEMENT (trusted devices)
         // ======================================================================
 
-      
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> ManageDevices()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return RedirectToAction("Login");
+
+            var userType = User.FindFirstValue(ClaimTypes.Role) == UserRole.Patient.ToString() ? "Patient" : "Employee";
+
+            var devices = await _context.UserDevices
+                .Where(d => d.UserId == userId && d.UserType == userType)
+                .OrderByDescending(d => d.LastSeen)
+                .ToListAsync();
+
+            return View(devices);
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RevokeDevice(int deviceId)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return RedirectToAction("Login");
+
+            var userType = User.FindFirstValue(ClaimTypes.Role) == UserRole.Patient.ToString() ? "Patient" : "Employee";
+
+            var device = await _context.UserDevices
+                .FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId && d.UserType == userType);
+
+            if (device != null)
+            {
+                _context.UserDevices.Remove(device);
+                await _context.SaveChangesAsync();
+                TempData["Message"] = "Device removed.";
+            }
+
+            return RedirectToAction("ManageDevices");
+        }
 
         // ======================================================================
         //  FORGOT / RESET PASSWORD
@@ -753,25 +822,16 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         private static string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
 
-        /// <summary>
-        /// Verifies a password against a stored hash. If the stored hash is plain text
-        /// and the password matches, the hash is upgraded to BCrypt automatically.
-        /// </summary>
         private static bool VerifyAndUpgradePassword(string password, ref string storedHash)
         {
             if (string.IsNullOrEmpty(storedHash))
                 return false;
 
-            // BCrypt hash starts with "$2"
             if (storedHash.StartsWith("$2"))
-            {
                 return BCrypt.Net.BCrypt.Verify(password, storedHash);
-            }
 
-            // Legacy plain text comparison
             if (password == storedHash)
             {
-                // Upgrade to BCrypt
                 storedHash = BCrypt.Net.BCrypt.HashPassword(password);
                 return true;
             }
@@ -779,9 +839,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return false;
         }
 
-        /// <summary>
-        /// Simple verification without auto-upgrade (used where no DbContext save is needed).
-        /// </summary>
         private static bool VerifyPassword(string password, string hash)
         {
             if (string.IsNullOrEmpty(hash)) return false;
@@ -804,6 +861,52 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             if (string.IsNullOrEmpty(json)) return 0;
             try { return JsonSerializer.Deserialize<List<string>>(json)?.Count ?? 0; }
             catch { return 0; }
+        }
+
+        private string GetOrCreateDeviceId()
+        {
+            if (Request.Cookies.TryGetValue(DeviceIdCookieName, out var existingId))
+                return existingId;
+
+            var newId = Guid.NewGuid().ToString("N");
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow.AddYears(1)
+            };
+            Response.Cookies.Append(DeviceIdCookieName, newId, cookieOptions);
+            return newId;
+        }
+
+        private async Task<UserDevice> GetOrCreateDeviceRecord(int userId, string userType, string deviceId, string? ipAddress)
+        {
+            var device = await _context.UserDevices
+                .FirstOrDefaultAsync(d => d.DeviceId == deviceId && d.UserId == userId && d.UserType == userType);
+
+            if (device == null)
+            {
+                device = new UserDevice
+                {
+                    UserId = userId,
+                    UserType = userType,
+                    DeviceId = deviceId,
+                    DeviceName = Request.Headers["User-Agent"].ToString(),
+                    IpAddress = ipAddress,
+                    IsTrusted = false,
+                    FirstSeen = DateTime.Now,
+                    LastSeen = DateTime.Now
+                };
+                _context.UserDevices.Add(device);
+            }
+            else
+            {
+                device.LastSeen = DateTime.Now;
+                device.IpAddress = ipAddress;
+            }
+            await _context.SaveChangesAsync();
+            return device;
         }
     }
 }

@@ -14,5 +14,8 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
 
         // Passed through the challenge — needed to complete sign-in
         public string ReturnUrl { get; set; } = string.Empty;
+
+        [Display(Name = "Remember this device (skip 2FA next time)")]
+        public bool TrustDevice { get; set; }
     }
 }
