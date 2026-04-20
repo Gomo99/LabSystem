@@ -10,11 +10,7 @@
     }
 
 
-    public enum GenderType
-    {
-        Male,
-        Female
-    }
+  
 
 
     public enum Status

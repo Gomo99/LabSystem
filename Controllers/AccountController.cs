@@ -5,6 +5,7 @@ using LaboratoryTestRequestManagementSystem.Services;
 using LaboratoryTestRequestManagementSystem.ViewModel;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -633,49 +634,73 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var roleClaim = User.FindFirstValue(ClaimTypes.Role);
-
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-                return RedirectToAction("Login");
-
-            if (roleClaim == UserRole.Patient.ToString())
+            try
             {
-                var patient = await _context.Patients.FindAsync(userId);
-                if (patient == null) return RedirectToAction("Login");
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var roleClaim = User.FindFirstValue(ClaimTypes.Role);
 
-                if (!VerifyPassword(model.CurrentPassword, patient.PasswordHash))
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+                    return RedirectToAction("Login");
+
+                if (roleClaim == UserRole.Patient.ToString())
                 {
-                    ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
-                    return View(model);
+                    var patient = await _context.Patients.FindAsync(userId);
+                    if (patient == null) return RedirectToAction("Login");
+
+                    if (!VerifyPassword(model.CurrentPassword, patient.PasswordHash))
+                    {
+                        ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
+                        return View(model);
+                    }
+
+                    patient.PasswordHash = HashPassword(model.NewPassword);
+                    patient.MustChangePassword = false;
+                }
+                else
+                {
+                    var employee = await _context.Employees.FindAsync(userId);
+                    if (employee == null) return RedirectToAction("Login");
+
+                    if (!VerifyPassword(model.CurrentPassword, employee.PasswordHash))
+                    {
+                        ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
+                        return View(model);
+                    }
+
+                    employee.PasswordHash = HashPassword(model.NewPassword);
+                    employee.MustChangePassword = false;
                 }
 
-                patient.PasswordHash = HashPassword(model.NewPassword);
-                patient.MustChangePassword = false;
                 await _context.SaveChangesAsync();
 
-                await SignInAsync(BuildPatientClaims(patient), isPersistent: true);
+                // 🔥 CRITICAL FIX: Refresh login session properly
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+                var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, roleClaim ?? ""),
+        };
+
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
+
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    principal,
+                    new AuthenticationProperties { IsPersistent = true }
+                );
+
+                TempData["Message"] = "Password changed successfully.";
+
+                return RedirectToDashboard();
             }
-            else
+            catch (Exception ex)
             {
-                var employee = await _context.Employees.FindAsync(userId);
-                if (employee == null) return RedirectToAction("Login");
-
-                if (!VerifyPassword(model.CurrentPassword, employee.PasswordHash))
-                {
-                    ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
-                    return View(model);
-                }
-
-                employee.PasswordHash = HashPassword(model.NewPassword);
-                employee.MustChangePassword = false;
-                await _context.SaveChangesAsync();
-
-                await SignInAsync(BuildEmployeeClaims(employee), isPersistent: true);
+                // 🔥 THIS prevents app crash
+                ModelState.AddModelError("", "Something went wrong: " + ex.Message);
+                return View(model);
             }
-
-            TempData["Message"] = "Password changed successfully.";
-            return RedirectToDashboard();
         }
 
         [Authorize]
@@ -726,6 +751,90 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToDashboard();
         }
 
+
+
+        // ======================================================================
+        //  PROFILE EDIT & DEACTIVATE (Admin, Doctor, LaboratoryManager, LabTechnician)
+        // ======================================================================
+
+        [Authorize(Roles = "Admin,Doctor,LaboratoryManager,LabTechnician")]
+        [HttpGet]
+        public async Task<IActionResult> EditProfile()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return RedirectToAction("Login");
+
+            var employee = await _context.Employees.FindAsync(userId.Value);
+            if (employee == null || (employee.Role != UserRole.Admin && employee.Role != UserRole.Doctor && employee.Role != UserRole.LaboratoryManager && employee.Role != UserRole.LabTechnician))
+                return RedirectToAction("Login");
+
+            var model = new EditProfileViewModel
+            {
+                FirstName = employee.FirstName,
+                LastName = employee.LastName,
+                ContactNumber = employee.ContactNumber
+            };
+            return View(model);
+        }
+
+        [Authorize(Roles = "Admin,Doctor,LaboratoryManager,LabTechnician")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditProfile(EditProfileViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var userId = GetCurrentUserId();
+            if (userId == null) return RedirectToAction("Login");
+
+            var employee = await _context.Employees.FindAsync(userId.Value);
+            if (employee == null || (employee.Role != UserRole.Admin && employee.Role != UserRole.Doctor && employee.Role != UserRole.LaboratoryManager && employee.Role != UserRole.LabTechnician))
+                return RedirectToAction("Login");
+
+            employee.FirstName = model.FirstName;
+            employee.LastName = model.LastName;
+            employee.ContactNumber = model.ContactNumber;
+            await _context.SaveChangesAsync();
+
+            // Refresh claims
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await SignInAsync(BuildEmployeeClaims(employee), isPersistent: true);
+
+            TempData["Message"] = "Profile updated successfully.";
+
+            // Redirect to appropriate dashboard
+            return employee.Role switch
+            {
+                UserRole.Admin => RedirectToAction("Dashboard", "Admin"),
+                UserRole.Doctor => RedirectToAction("Dashboard", "Doctor"),
+                UserRole.LaboratoryManager => RedirectToAction("Dashboard", "LaboratoryManager"),
+                UserRole.LabTechnician => RedirectToAction("Dashboard", "LabTechnician"),
+                _ => RedirectToAction("Login", "Account")
+            };
+        }
+
+        [Authorize(Roles = "Admin,Doctor,LaboratoryManager,LabTechnician")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeactivateAccount()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return RedirectToAction("Login");
+
+            var employee = await _context.Employees.FindAsync(userId.Value);
+            if (employee == null || (employee.Role != UserRole.Admin && employee.Role != UserRole.Doctor && employee.Role != UserRole.LaboratoryManager && employee.Role != UserRole.LabTechnician))
+                return RedirectToAction("Login");
+
+            employee.IsActive = Status.Inactive;
+            await _context.SaveChangesAsync();
+
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            HttpContext.Session.Clear();
+
+            TempData["Message"] = "Your account has been deactivated. Contact an administrator to reactivate.";
+            return RedirectToAction("Login", "Account");
+        }
+
         // ======================================================================
         //  LOGOUT
         // ======================================================================
@@ -738,6 +847,128 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             HttpContext.Session.Clear();
             return RedirectToAction("Login", "Account");
         }
+
+
+
+
+
+
+        // ======================================================================
+        //  EXTERNAL LOGIN (Google SSO)
+        // ======================================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ExternalLogin(string provider, string? returnUrl = null)
+        {
+            var redirectUrl = Url.Action("ExternalLoginCallback", "Account", new { ReturnUrl = returnUrl });
+            var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
+            return Challenge(properties, provider);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExternalLoginCallback(string? returnUrl = null, string? remoteError = null)
+        {
+            if (remoteError != null)
+            {
+                TempData["Error"] = $"Error from external provider: {remoteError}";
+                return RedirectToAction("Login");
+            }
+
+            var info = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            if (!info.Succeeded)
+                return RedirectToAction("Login");
+
+            // Get claims from the external provider
+            var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            if (!result.Succeeded)
+                return RedirectToAction("Login");
+
+            var email = result.Principal.FindFirstValue(ClaimTypes.Email);
+            var givenName = result.Principal.FindFirstValue(ClaimTypes.GivenName);
+            var surname = result.Principal.FindFirstValue(ClaimTypes.Surname);
+
+            if (string.IsNullOrEmpty(email))
+            {
+                TempData["Error"] = "Email not provided by Google.";
+                return RedirectToAction("Login");
+            }
+
+            // Try to find existing user (Employee or Patient)
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            if (employee != null)
+            {
+                if (employee.IsActive != Status.Active)
+                {
+                    TempData["Error"] = "Account is inactive.";
+                    return RedirectToAction("Login");
+                }
+
+                // Sign in the employee
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await SignInAsync(BuildEmployeeClaims(employee), isPersistent: true);
+
+                if (employee.MustChangePassword)
+                    return RedirectToAction("ChangePassword");
+
+                return RedirectToSavedUrl(returnUrl, employee.Role);
+            }
+
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Email == email);
+            if (patient != null)
+            {
+                if (patient.IsActive != Status.Active)
+                {
+                    TempData["Error"] = "Account is inactive.";
+                    return RedirectToAction("Login");
+                }
+
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await SignInAsync(BuildPatientClaims(patient), isPersistent: true);
+
+                if (patient.MustChangePassword)
+                    return RedirectToAction("ChangePassword");
+
+                return RedirectToSavedUrl(returnUrl, UserRole.Patient);
+            }
+
+            // No existing user – create a new Patient account automatically
+            var newPatient = new Patient
+            {
+                FirstName = givenName ?? "Google",
+                LastName = surname ?? "User",
+                Email = email,
+                SouthAfricanIdNumber = GenerateTemporaryIdNumber(), // Generate a placeholder; patient can update later
+                DateOfBirth = DateTime.Now.AddYears(-30),          // Placeholder
+                CellphoneNumber = "0000000000",                    // Placeholder
+                HomeAddress = "Not provided",
+                PasswordHash = HashPassword(Guid.NewGuid().ToString()), // Random password (won't be used)
+                IsActive = Status.Active,
+                MustChangePassword = true, // Force them to set a proper password later
+                FailedLoginAttempts = 0
+            };
+
+            _context.Patients.Add(newPatient);
+            await _context.SaveChangesAsync();
+
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await SignInAsync(BuildPatientClaims(newPatient), isPersistent: true);
+
+            TempData["Message"] = "Account created via Google. Please complete your profile.";
+            return RedirectToAction("Profile", "Patient");
+        }
+
+        private string GenerateTemporaryIdNumber()
+        {
+            // Generate a unique temporary ID (format: YYMMDD + 4 random digits)
+            var rnd = new Random();
+            return DateTime.Now.ToString("yyMMdd") + rnd.Next(1000, 9999).ToString();
+        }
+
+
+
+
+
 
         // ======================================================================
         //  HELPER METHODS
@@ -908,5 +1139,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             await _context.SaveChangesAsync();
             return device;
         }
+
+
+
     }
 }

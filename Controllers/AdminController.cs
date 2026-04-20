@@ -18,7 +18,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context = context;
         }
 
-        public IActionResult Dashboard() => View();
+        public IActionResult DashBoard() => View();
 
         #region Medical Conditions
 

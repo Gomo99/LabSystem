@@ -587,6 +587,11 @@
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .page-header { flex-direction: column; }
         }
+
+        .dropdown-item:hover {
+            background: rgba(14,206,206,.08);
+            color: var(--off-white) !important;
+        }
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -662,29 +667,38 @@
 </aside>
 
 <!-- ═══ TOPBAR ═══ -->
-<header class="topbar">
-    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <div class="topbar-title">
-        @if (ViewData["BreadcrumbParent"] != null)
-        {
-            <span style="color:var(--muted);">@ViewData["BreadcrumbParent"]</span>
-            <span style="color:rgba(122,153,187,.4); margin:0 6px;">/</span>
-        }
-        <span>@ViewData["Title"]</span>
-    </div>
-
+    <!-- Replace the existing .topbar-actions div with this -->
     <div class="topbar-actions">
-        <a asp-controller="LaboratoryManager" asp-action="LowStockAlert" class="topbar-btn" title="Low Stock Alerts">
-            <i class="fas fa-triangle-exclamation"></i>
-        </a>
-        <a asp-controller="Account" asp-action="ChangePassword" class="topbar-btn" title="Change Password">
-            <i class="fas fa-lock"></i>
-        </a>
+        <div class="dropdown" style="position:relative;">
+            <button class="topbar-btn" type="button" id="userDropdownBtn" onclick="toggleDropdown()" style="display:flex;align-items:center;gap:6px;width:auto;padding:0 12px;">
+                <i class="fas fa-user-circle"></i>
+                <span style="font-size:.8rem;">@firstName</span>
+                <i class="fas fa-chevron-down" style="font-size:.7rem;"></i>
+            </button>
+            <div id="userDropdown" class="dropdown-menu" style="display:none;position:absolute;right:0;top:50px;background:var(--navy-mid);border:1px solid var(--border);border-radius:12px;padding:8px 0;min-width:180px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5);">
+                <a asp-action="EditProfile" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
+                    <i class="fas fa-pen"></i> Edit Profile
+                </a>
+                <a asp-action="ChangePassword" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
+                    <i class="fas fa-lock"></i> Change Password
+                </a>
+                <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
+                <form asp-action="DeactivateAccount" asp-controller="Account" method="post" onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--danger);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
+                        <i class="fas fa-user-slash"></i> Deactivate Account
+                    </button>
+                </form>
+                <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
+                <form asp-action="Logout" asp-controller="Account" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
+                        <i class="fas fa-right-from-bracket"></i> Sign Out
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
-</header>
 
 <!-- ═══ MAIN ═══ -->
 <main class="main-content">
@@ -738,6 +752,20 @@
             r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
         });
     }
+
+            function toggleDropdown() {
+            var dd = document.getElementById('userDropdown');
+            dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+        }
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            var btn = document.getElementById('userDropdownBtn');
+            var dd = document.getElementById('userDropdown');
+            if (!btn.contains(event.target) && !dd.contains(event.target)) {
+                dd.style.display = 'none';
+            }
+        });
+
 </script>
 
 @await RenderSectionAsync("Scripts", required: false)

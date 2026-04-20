@@ -25,7 +25,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _pdfService = pdfService;
         }
 
-        public IActionResult Dashboard() => View();
+        public IActionResult DashBoard() => View();
 
         private int GetCurrentPatientId()
         {
