@@ -1,0 +1,56 @@
+﻿@model IEnumerable<Employee>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Doctors";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Doctors</h1>
+        <div class="page-sub">Manage doctor accounts</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveDoctors" class="btn btn-ghost btn-sm">
+            <i class="fas fa-user-slash"></i> Inactive
+        </a>
+        <a asp-action="CreateDoctor" class="btn btn-primary btn-sm">
+            <i class="fas fa-user-plus"></i> New Doctor
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>HPCSA Number</th>
+                    <th>Email</th>
+                    <th>Contact</th>
+                    <th style="width:160px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var doc in Model)
+                {
+                    <tr>
+                        <td>@doc.FirstName @doc.LastName</td>
+                        <td>@doc.HPCSANumber</td>
+                        <td>@doc.Email</td>
+                        <td>@(doc.ContactNumber ?? "—")</td>
+                        <td>
+                            <div style="display:flex;gap:6px;">
+                                <a asp-action="EditDoctor" asp-route-id="@doc.Id" class="btn btn-secondary btn-sm"><i class="fas fa-pen"></i></a>
+                                <form asp-action="DeleteDoctor" method="post">
+                                    <input type="hidden" name="id" value="@doc.Id" />
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this doctor?')"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,123 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@using LaboratoryTestRequestManagementSystem.ViewModel
+@model EditTestRequestViewModel
+@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Edit Test Request";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Edit Test Request #@Model.Id</h1>
+        <div class="page-sub">Modify request details</div>
+    </div>
+    <a asp-action="RequestDetails" asp-route-id="@Model.Id" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:800px;">
+    <form asp-action="EditRequest" method="post">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="CanEditSamples" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-group">
+            <label asp-for="PatientId" class="form-label"></label>
+            <select asp-for="PatientId" class="form-select" asp-items="ViewBag.Patients">
+                <option value="">-- Select Patient --</option>
+            </select>
+            <span asp-validation-for="PatientId" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Urgency" class="form-label"></label>
+            <select asp-for="Urgency" class="form-select" asp-items="Html.GetEnumSelectList<Urgency>()"></select>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="ClinicalNotes" class="form-label"></label>
+            <textarea asp-for="ClinicalNotes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <h4 style="font-size:1rem;margin:20px 0 10px;color:var(--teal);">Test Types</h4>
+        <div class="check-grid">
+            @foreach (var testType in ViewBag.TestTypes)
+            {
+                <div class="check-item">
+                    <input type="checkbox" name="SelectedTestTypeIds" value="@testType.Id" id="tt_@testType.Id"
+                           @(Model.SelectedTestTypeIds.Contains(testType.Id) ? "checked" : "") />
+                    <label for="tt_@testType.Id">@testType.TestName (Sample: @testType.SampleType?.Name)</label>
+                </div>
+            }
+        </div>
+        <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
+
+        <h4 style="font-size:1rem;margin:20px 0 10px;color:var(--teal);">Samples</h4>
+        <div id="samplesContainer">
+            @for (int i = 0; i < Model.Samples.Count; i++)
+            {
+                <div class="row mb-2 sample-row">
+                    <div class="col-md-5">
+                        <input type="text" name="Samples[@i].Barcode" class="form-control" placeholder="Barcode" value="@Model.Samples[i].Barcode" @(Model.CanEditSamples ? "" : "readonly") />
+                    </div>
+                    <div class="col-md-5">
+                        <select name="Samples[@i].SampleTypeId" class="form-select" @(Model.CanEditSamples ? "" : "disabled")>
+                            <option value="">-- Sample Type --</option>
+                            @foreach (var st in ViewBag.SampleTypes)
+                            {
+                                <!option value="@st.Value" selected="@(st.Value == Model.Samples[i].SampleTypeId.ToString() ? "selected" : null)">@st.Text</!option>
+                            }
+                        </select>
+                    </div>
+                    @if (Model.CanEditSamples)
+                    {
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-sample">Remove</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        @if (Model.CanEditSamples)
+        {
+            <button type="button" id="addSampleBtn" class="btn btn-secondary btn-sm">Add Sample</button>
+        }
+        <hr />
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (Model.CanEditSamples)
+    {
+        <script>
+            let sampleIndex = @Model.Samples.Count;
+            document.getElementById('addSampleBtn').addEventListener('click', function() {
+                const container = document.getElementById('samplesContainer');
+                const row = document.createElement('div');
+                row.className = 'row mb-2 sample-row';
+                row.innerHTML = `
+                    <div class="col-md-5">
+                        <input type="text" name="Samples[${sampleIndex}].Barcode" class="form-control" placeholder="Barcode" required />
+                    </div>
+                    <div class="col-md-5">
+                        <select name="Samples[${sampleIndex}].SampleTypeId" class="form-select" required>
+                            <option value="">-- Sample Type --</option>
+                            @foreach (var st in ViewBag.SampleTypes)
+                            {
+                                    <option value="@st.Value">@st.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger remove-sample">Remove</button>
+                    </div>
+                `;
+                container.appendChild(row);
+                sampleIndex++;
+                row.querySelector('.remove-sample').addEventListener('click', () => row.remove());
+            });
+            document.querySelectorAll('.remove-sample').forEach(b => b.addEventListener('click', e => e.target.closest('.sample-row').remove()));
+        </script>
+    }
+}

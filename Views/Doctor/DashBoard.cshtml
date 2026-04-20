@@ -1,5 +1,77 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Dashboard";
 }
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Dashboard</h1>
+        <div class="page-sub">Welcome back, Doctor</div>
+    </div>
+    <div>
+        <a asp-action="CreateTestRequest" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Test Request
+        </a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-users"></i></div>
+        <div><div class="stat-val">@(ViewBag.PatientCount ?? "—")</div><div class="stat-label">Active Patients</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-file-medical"></i></div>
+        <div><div class="stat-val">@(ViewBag.ActiveRequestCount ?? "—")</div><div class="stat-label">Active Requests</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon warn"><i class="fas fa-clock"></i></div>
+        <div><div class="stat-val">@(ViewBag.PendingRequestCount ?? "—")</div><div class="stat-label">Pending Results</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon danger"><i class="fas fa-exclamation-triangle"></i></div>
+        <div><div class="stat-val">@(ViewBag.AbnormalAlertCount ?? "—")</div><div class="stat-label">Abnormal Alerts (5d)</div></div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <div class="section-title"><i class="fas fa-bolt"></i> Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <a asp-action="RegisterPatient" class="btn btn-secondary" style="justify-content:flex-start;">
+                <i class="fas fa-user-plus"></i> Register New Patient
+            </a>
+            <a asp-action="CreateTestRequest" class="btn btn-secondary" style="justify-content:flex-start;">
+                <i class="fas fa-plus-circle"></i> Create Test Request
+            </a>
+            <a asp-action="Alerts" class="btn btn-warning" style="justify-content:flex-start;">
+                <i class="fas fa-exclamation-triangle"></i> View Abnormal Alerts
+            </a>
+            <a asp-action="TestRequestsReport" class="btn btn-ghost" style="justify-content:flex-start;">
+                <i class="fas fa-file-pdf"></i> Generate Report
+            </a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="section-title"><i class="fas fa-chart-simple"></i> Recent Activity</div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:.88rem;color:var(--muted);">Recent Test Requests</span>
+                <a asp-action="TestRequests" class="btn btn-ghost btn-sm">View All</a>
+            </div>
+            @if (ViewBag.RecentRequests != null)
+            {
+                foreach (var req in ViewBag.RecentRequests)
+                {
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--border-soft);">
+                        <div>
+                            <div style="font-weight:500;">@req.PatientName</div>
+                            <div style="font-size:.72rem;color:var(--muted);">@req.RequestDate.ToString("dd/MM/yyyy")</div>
+                        </div>
+                        <span class="badge badge-teal">@req.Status</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

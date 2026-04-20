@@ -1,0 +1,68 @@
+﻿@model IEnumerable<TestCategory>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Test Categories";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Test Categories</h1>
+        <div class="page-sub">Manage test categories</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveTestCategories" class="btn btn-ghost btn-sm">
+            <i class="fas fa-archive"></i> View Inactive
+        </a>
+        <a asp-action="CreateTestCategory" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Category
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-layer-group"></i></div>
+            <h3>No test categories</h3>
+            <p>Create a new test category to get started.</p>
+            <a asp-action="CreateTestCategory" class="btn btn-primary">Create Category</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th style="width:160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.CategoryName</td>
+                            <td>@(item.Description ?? "—")</td>
+                            <td>
+                                <div style="display:flex;gap:6px;">
+                                    <a asp-action="EditTestCategory" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form asp-action="DeleteTestCategory" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this category?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

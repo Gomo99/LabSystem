@@ -1,0 +1,73 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model AlertsFilterViewModel
+@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Abnormal Results Alerts";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Abnormal Results Alerts</h1>
+        <div class="page-sub">Tests with results outside normal range</div>
+    </div>
+</div>
+
+<div class="card">
+    <form method="get" asp-action="Alerts" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="startDate" class="form-control" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">End Date</label>
+            <input type="date" name="endDate" class="form-control" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a asp-action="Alerts" class="btn btn-ghost">Reset</a>
+        </div>
+    </form>
+
+    @if (!Model.Alerts.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
+            <h3>No abnormal results</h3>
+            <p>No abnormal results found in the selected date range.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Test</th>
+                        <th>Result</th>
+                        <th>Normal Range</th>
+                        <th>Completed</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var alert in Model.Alerts)
+                    {
+                        <tr class="table-danger">
+                            <td>@alert.PatientName</td>
+                            <td>@alert.TestName</td>
+                            <td><strong style="color:var(--danger);">@alert.ResultValue</strong></td>
+                            <td>@alert.NormalRange</td>
+                            <td>@alert.CompletedDate?.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <a asp-action="RequestDetails" asp-route-id="@alert.TestRequestId" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

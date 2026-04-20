@@ -1,0 +1,245 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@model AvailableTestTypeViewModel
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Process Tests";
+    int currentTechId = (int)ViewBag.CurrentTechnicianId;
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Process Tests</h1>
+        <div class="page-sub">Request #@Model.TestRequestId - @Model.PatientName</div>
+    </div>
+    <a asp-action="AvailableForProcessing" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<!-- Patient Info Card -->
+<div class="card">
+    <h4 style="margin-bottom:15px;color:var(--teal);"><i class="fas fa-user"></i> Patient Information</h4>
+    <p><strong>Clinical Notes:</strong> @(Model.ClinicalNotes ?? "None")</p>
+    <div class="row">
+        <div class="col-md-4">
+            <strong>Medical Conditions:</strong>
+            <ul style="margin-top:5px;">
+                @foreach (var cond in Model.MedicalConditions)
+                {
+                    <li>@cond</li>
+                }
+            </ul>
+        </div>
+        <div class="col-md-4">
+            <strong>Allergies:</strong>
+            <ul style="margin-top:5px;">
+                @foreach (var allergy in Model.Allergies)
+                {
+                    <li>@allergy</li>
+                }
+            </ul>
+        </div>
+        <div class="col-md-4">
+            <strong>Medications:</strong>
+            <ul style="margin-top:5px;">
+                @foreach (var med in Model.Medications)
+                {
+                    <li>@med</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Test Types Table -->
+<div class="card">
+    @if (!Model.TestTypes.Any())
+    {
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> You are not qualified for any test types on this request.
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Sample</th>
+                        <th>Status</th>
+                        <th>Assigned To</th>
+                        <th>Started</th>
+                        <th>Expected</th>
+                        <th>Completed</th>
+                        <th>Verified By</th>
+                        <th style="width:200px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var test in Model.TestTypes)
+                    {
+                        <tr class="@(test.IsOverdue ? "table-danger" : "")">
+                            <td>@test.TestName</td>
+                            <td>@test.SampleType</td>
+                            <td>@test.Status</td>
+                            <td>@(test.TechnicianName ?? "—")</td>
+                            <td>@(test.StartDateTime?.ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td>
+                                @if (test.ExpectedCompletionTime.HasValue)
+                                {
+                                    <span>@test.ExpectedCompletionTime.Value.ToString("dd/MM HH:mm")</span>
+                                    @if (test.IsOverdue)
+                                    {
+                                        <span class="badge badge-danger">OVERDUE</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td>@(test.CompletionDateTime?.ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td>@(test.VerifiedByName ?? "—")</td>
+                            <td>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    @if (test.CanStart)
+                                    {
+                                        <form asp-action="StartTest" method="post">
+                                            <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                                            <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                                            <button type="submit" class="btn btn-success btn-sm">Start</button>
+                                        </form>
+                                    }
+                                    else if (test.CanComplete)
+                                    {
+                                        <a asp-action="CaptureResult" asp-route-testRequestId="@test.TestRequestId" asp-route-testTypeId="@test.TestTypeId" class="btn btn-primary btn-sm">Capture Results</a>
+                                    }
+                                    else if (test.CanVerify)
+                                    {
+                                        <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#verifyModal-@test.TestTypeId">Verify</button>
+                                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#returnModal-@test.TestTypeId">Return</button>
+                                    }
+                                    else if (test.CanResubmit)
+                                    {
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#resubmitModal-@test.TestTypeId">Resubmit</button>
+                                    }
+                                    else if (test.Status == RequestStatus.Verified)
+                                    {
+                                        <span class="badge badge-green">Verified</span>
+                                    }
+                                    else if (test.Status == RequestStatus.ToBeReviewed)
+                                    {
+                                        <span class="badge badge-danger">Awaiting Review</span>
+                                    }
+
+                                    <!-- History Button -->
+                                    <button type="button" class="btn btn-ghost btn-sm" data-bs-toggle="modal" data-bs-target="#historyModal-@test.TestTypeId">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Modals for each test -->
+@foreach (var test in Model.TestTypes)
+{
+    <!-- Verify Modal -->
+    <div class="modal fade" id="verifyModal-@test.TestTypeId" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
+                <form asp-action="VerifyTest" method="post">
+                    <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                    <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="color:var(--white);">Verify: @test.TestName</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea name="verificationNotes" class="form-control" rows="3" placeholder="Verification notes (optional)"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-info btn-sm">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Return Modal -->
+    <div class="modal fade" id="returnModal-@test.TestTypeId" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
+                <form asp-action="ReturnForReview" method="post">
+                    <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                    <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="color:var(--white);">Return for Review: @test.TestName</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea name="reviewNotes" class="form-control" rows="3" placeholder="Reason for return" required></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning btn-sm">Return</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resubmit Modal -->
+    <div class="modal fade" id="resubmitModal-@test.TestTypeId" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
+                <form asp-action="ResubmitForVerification" method="post">
+                    <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                    <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="color:var(--white);">Resubmit: @test.TestName</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Adjusted Result Value</label>
+                            <input type="text" name="adjustedResultValue" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Notes</label>
+                            <textarea name="resubmitNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Resubmit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal fade" id="historyModal-@test.TestTypeId" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
+                <div class="modal-header">
+                    <h5 class="modal-title" style="color:var(--white);">Review History: @test.TestName</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    @await Component.InvokeAsync("TestReviewHistory", new { testRequestId = test.TestRequestId, testTypeId = test.TestTypeId })
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+}

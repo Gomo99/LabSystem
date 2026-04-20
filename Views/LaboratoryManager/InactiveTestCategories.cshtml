@@ -1,0 +1,56 @@
+﻿@model IEnumerable<TestCategory>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Inactive Test Categories";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Inactive Test Categories</h1>
+        <div class="page-sub">Deactivated categories</div>
+    </div>
+    <a asp-action="TestCategories" class="btn btn-ghost btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Active
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-archive"></i></div>
+            <h3>No inactive categories</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th style="width:100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.CategoryName</td>
+                            <td>@(item.Description ?? "—")</td>
+                            <td>
+                                <form asp-action="RestoreTestCategory" method="post">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-rotate-left"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

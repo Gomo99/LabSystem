@@ -1,0 +1,34 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model TestCategoryViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Edit Test Category";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Edit Test Category</h1>
+    </div>
+    <a asp-action="TestCategories" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:600px;">
+    <form asp-action="EditTestCategory" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-group">
+            <label asp-for="CategoryName" class="form-label"></label>
+            <input asp-for="CategoryName" class="form-control" />
+            <span asp-validation-for="CategoryName" class="text-danger"></span>
+        </div>
+        <div class="form-group">
+            <label asp-for="Description" class="form-label"></label>
+            <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

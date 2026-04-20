@@ -1,0 +1,74 @@
+﻿@model IEnumerable<ProcessTestRequestListViewModel>
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Available for Processing";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Available for Processing</h1>
+        <div class="page-sub">Test requests ready to be worked on</div>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-list-check"></i></div>
+            <h3>No requests available</h3>
+            <p>All received requests are either in progress or completed.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Date</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in Model)
+                    {
+                        <tr>
+                            <td>#@req.Id</td>
+                            <td>@req.PatientName</td>
+                            <td>@req.DoctorName</td>
+                            <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (req.Urgency == Urgency.Stat)
+                                {
+                                    <span class="badge badge-danger">STAT</span>
+                                }
+                                else if (req.Urgency == Urgency.Urgent)
+                                {
+                                    <span class="badge badge-warn">Urgent</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-muted">Routine</span>
+                                }
+                            </td>
+                            <td>@req.Status</td>
+                            <td>@req.CompletedTests / @req.TotalTests</td>
+                            <td>
+                                <a asp-action="ProcessTestTypes" asp-route-requestId="@req.Id" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-eye"></i> Process
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

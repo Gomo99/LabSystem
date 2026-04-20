@@ -1,0 +1,44 @@
+﻿@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Dashboard</h1>
+        <div class="page-sub">System administration overview</div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-notes-medical"></i></div>
+        <div><div class="stat-val">@(ViewBag.ConditionCount ?? "—")</div><div class="stat-label">Medical Conditions</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-allergies"></i></div>
+        <div><div class="stat-val">@(ViewBag.AllergyCount ?? "—")</div><div class="stat-label">Allergies</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-pills"></i></div>
+        <div><div class="stat-val">@(ViewBag.MedicationCount ?? "—")</div><div class="stat-label">Medications</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <i class="fas fa-bolt" style="color:var(--teal);"></i>
+        <h3 style="font-size:1.1rem;font-weight:600;">Quick Actions</h3>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        <a asp-action="CreateMedicalCondition" class="btn btn-secondary" style="justify-content:center;">
+            <i class="fas fa-plus"></i> New Medical Condition
+        </a>
+        <a asp-action="CreateAllergy" class="btn btn-secondary" style="justify-content:center;">
+            <i class="fas fa-plus"></i> New Allergy
+        </a>
+        <a asp-action="CreateMedication" class="btn btn-secondary" style="justify-content:center;">
+            <i class="fas fa-plus"></i> New Medication
+        </a>
+    </div>
+</div>

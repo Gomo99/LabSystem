@@ -1,0 +1,71 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model ReceiveSampleViewModel
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Receive Samples";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Receive Samples</h1>
+        <div class="page-sub">Request #@Model.TestRequestId - @Model.PatientName</div>
+    </div>
+    <a asp-action="PendingTestRequests" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    <div style="margin-bottom:20px;">
+        <p><strong>Doctor:</strong> @Model.DoctorName</p>
+        <p><strong>Request Date:</strong> @Model.RequestDate.ToString("dd/MM/yyyy")</p>
+    </div>
+
+    <form asp-action="ReceiveSamples" method="post">
+        <input type="hidden" asp-for="TestRequestId" />
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Barcode</th>
+                        <th>Sample Type</th>
+                        <th>Status</th>
+                        <th>Receive</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Samples.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                @Model.Samples[i].Barcode
+                                <input type="hidden" asp-for="Samples[i].SampleId" />
+                                <input type="hidden" asp-for="Samples[i].Barcode" />
+                                <input type="hidden" asp-for="Samples[i].SampleType" />
+                            </td>
+                            <td>@Model.Samples[i].SampleType</td>
+                            <td>
+                                @if (Model.Samples[i].IsReceived)
+                                {
+                                    <span class="badge badge-green">Received @Model.Samples[i].ReceivedDate?.ToString("HH:mm")</span>
+                                    <input type="hidden" asp-for="Samples[i].IsReceived" value="true" />
+                                }
+                                else
+                                {
+                                    <span class="badge badge-warn">Pending</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!Model.Samples[i].IsReceived)
+                                {
+                                    <input type="checkbox" asp-for="Samples[i].IsReceived" value="true" class="form-check-input" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Confirm Receipt</button>
+    </form>
+</div>

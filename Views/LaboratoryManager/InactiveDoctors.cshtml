@@ -1,0 +1,58 @@
+﻿@model IEnumerable<Employee>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Inactive Doctors";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Inactive Doctors</h1>
+        <div class="page-sub">Deactivated doctor accounts</div>
+    </div>
+    <a asp-action="Doctors" class="btn btn-ghost btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Active
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-user-slash"></i></div>
+            <h3>No inactive doctors</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>HPCSA Number</th>
+                        <th>Email</th>
+                        <th style="width:100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var doc in Model)
+                    {
+                        <tr>
+                            <td>@doc.FirstName @doc.LastName</td>
+                            <td>@doc.HPCSANumber</td>
+                            <td>@doc.Email</td>
+                            <td>
+                                <form asp-action="RestoreDoctor" method="post">
+                                    <input type="hidden" name="id" value="@doc.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-rotate-left"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,20 +1,21 @@
-@using LaboratoryTestRequestManagementSystem.ViewModel
-@model PatientRegistrationViewModel
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model EditPatientViewModel
 @{
     Layout = "~/Views/Shared/_DoctorLayout.cshtml";
-    ViewData["Title"] = "Register New Patient";
+    ViewData["Title"] = "Edit Patient";
 }
 
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Register New Patient</h1>
-        <div class="page-sub">Create a new patient record</div>
+        <h1>Edit Patient</h1>
+        <div class="page-sub">@Model.FirstName @Model.LastName</div>
     </div>
-    <a asp-action="Patients" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
 
 <div class="card" style="max-width:800px;">
-    <form asp-action="RegisterPatient" method="post">
+    <form asp-action="Edit" method="post">
+        <input type="hidden" asp-for="Id" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="form-grid">
             <div class="form-group">
@@ -52,18 +53,20 @@
                 <textarea asp-for="HomeAddress" class="form-control" rows="2"></textarea>
                 <span asp-validation-for="HomeAddress" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" type="password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
+            <div class="form-group full">
+                <label asp-for="MedicalConditionsInput" class="form-label"></label>
+                <textarea asp-for="MedicalConditionsInput" class="form-control" rows="2" placeholder="e.g., Diabetes, Hypertension"></textarea>
             </div>
-            <div class="form-group">
-                <label asp-for="ConfirmPassword" class="form-label"></label>
-                <input asp-for="ConfirmPassword" class="form-control" type="password" />
-                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            <div class="form-group full">
+                <label asp-for="AllergiesInput" class="form-label"></label>
+                <textarea asp-for="AllergiesInput" class="form-control" rows="2" placeholder="e.g., Penicillin, Peanuts"></textarea>
+            </div>
+            <div class="form-group full">
+                <label asp-for="MedicationsInput" class="form-label"></label>
+                <textarea asp-for="MedicationsInput" class="form-control" rows="2" placeholder="e.g., Metformin, Lisinopril"></textarea>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">Register Patient</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
     </form>
 </div>
 

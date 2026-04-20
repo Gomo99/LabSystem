@@ -1,0 +1,70 @@
+﻿@model IEnumerable<Supplier>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Suppliers";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Suppliers</h1>
+        <div class="page-sub">Manage vendors</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveSuppliers" class="btn btn-ghost btn-sm">
+            <i class="fas fa-archive"></i> View Inactive
+        </a>
+        <a asp-action="CreateSupplier" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Supplier
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-truck"></i></div>
+            <h3>No suppliers</h3>
+            <p>Add a supplier to the system.</p>
+            <a asp-action="CreateSupplier" class="btn btn-primary">Add Supplier</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th style="width:160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.SupplierName</td>
+                            <td>@(item.ContactPerson ?? "—")</td>
+                            <td>@(item.EmailAddress ?? "—")</td>
+                            <td>
+                                <div style="display:flex;gap:6px;">
+                                    <a asp-action="EditSupplier" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form asp-action="DeleteSupplier" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this supplier?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

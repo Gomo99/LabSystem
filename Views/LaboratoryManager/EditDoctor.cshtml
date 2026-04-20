@@ -1,0 +1,52 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model DoctorUserViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Edit Doctor";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Edit Doctor</h1>
+    </div>
+    <a asp-action="Doctors" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:600px;">
+    <form asp-action="EditDoctor" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="form-group full">
+                <label asp-for="HPCSANumber" class="form-label"></label>
+                <input asp-for="HPCSANumber" class="form-control" />
+                <span asp-validation-for="HPCSANumber" class="text-danger"></span>
+            </div>
+            <div class="form-group full">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="form-group full">
+                <label asp-for="ContactNumber" class="form-label"></label>
+                <input asp-for="ContactNumber" class="form-control" />
+            </div>
+        </div>
+        <p class="text-muted" style="font-size:.8rem;">Password cannot be edited here.</p>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

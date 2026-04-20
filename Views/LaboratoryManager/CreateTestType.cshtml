@@ -1,0 +1,74 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model TestTypeViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Create Test Type";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Create Test Type</h1>
+    </div>
+    <a asp-action="TestTypes" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:800px;">
+    <form asp-action="CreateTestType" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="TestName" class="form-label"></label>
+                <input asp-for="TestName" class="form-control" />
+                <span asp-validation-for="TestName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="TestCategoryId" class="form-label"></label>
+                <select asp-for="TestCategoryId" class="form-select" asp-items="ViewBag.Categories">
+                    <option value="">-- Select Category --</option>
+                </select>
+                <span asp-validation-for="TestCategoryId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="SampleTypeId" class="form-label"></label>
+                <select asp-for="SampleTypeId" class="form-select" asp-items="ViewBag.SampleTypes">
+                    <option value="">-- Select Sample Type --</option>
+                </select>
+                <span asp-validation-for="SampleTypeId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="UnitsOfMeasurement" class="form-label"></label>
+                <input asp-for="UnitsOfMeasurement" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label asp-for="NormalRangeMin" class="form-label"></label>
+                <input asp-for="NormalRangeMin" class="form-control" type="number" step="any" />
+            </div>
+            <div class="form-group">
+                <label asp-for="NormalRangeMax" class="form-label"></label>
+                <input asp-for="NormalRangeMax" class="form-control" type="number" step="any" />
+            </div>
+            <div class="form-group">
+                <label asp-for="TurnaroundTimeMinutes" class="form-label"></label>
+                <input asp-for="TurnaroundTimeMinutes" class="form-control" type="number" />
+                <span asp-validation-for="TurnaroundTimeMinutes" class="text-danger"></span>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Consumables Used</label>
+                <div class="check-grid">
+                    @foreach (var cons in ViewBag.Consumables)
+                    {
+                        <div class="check-item">
+                            <input type="checkbox" name="SelectedConsumableIds" value="@cons.Id" id="cons_@cons.Id" />
+                            <label for="cons_@cons.Id">@cons.ConsumableName</label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Test Type</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

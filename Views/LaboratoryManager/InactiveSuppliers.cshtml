@@ -1,0 +1,58 @@
+﻿@model IEnumerable<Supplier>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Inactive Suppliers";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Inactive Suppliers</h1>
+        <div class="page-sub">Deactivated vendors</div>
+    </div>
+    <a asp-action="Suppliers" class="btn btn-ghost btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Active
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-archive"></i></div>
+            <h3>No inactive suppliers</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th style="width:100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.SupplierName</td>
+                            <td>@(item.ContactPerson ?? "—")</td>
+                            <td>@(item.EmailAddress ?? "—")</td>
+                            <td>
+                                <form asp-action="RestoreSupplier" method="post">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-rotate-left"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

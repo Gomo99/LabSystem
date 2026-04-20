@@ -1,0 +1,54 @@
+﻿@model IEnumerable<Consumable>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Low Stock Alert";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Low Stock Alert</h1>
+        <div class="page-sub">Items at or below reorder level (within 10%)</div>
+    </div>
+    <a asp-action="CreateOrder" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Create Order
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
+            <h3>No low stock items</h3>
+            <p>All inventory levels are sufficient.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Consumable</th>
+                        <th>Supplier</th>
+                        <th>Qty on Hand</th>
+                        <th>Reorder Level</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.ConsumableName</td>
+                            <td>@item.Supplier?.SupplierName</td>
+                            <td style="color:var(--warning);font-weight:600;">@item.QuantityOnHand</td>
+                            <td>@item.ReorderLevel</td>
+                            <td><span class="badge badge-warn">Low Stock</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

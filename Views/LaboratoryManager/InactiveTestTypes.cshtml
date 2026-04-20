@@ -1,0 +1,60 @@
+﻿@model IEnumerable<TestType>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Inactive Test Types";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Inactive Test Types</h1>
+        <div class="page-sub">Deactivated test types</div>
+    </div>
+    <a asp-action="TestTypes" class="btn btn-ghost btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Active
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-archive"></i></div>
+            <h3>No inactive test types</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Category</th>
+                        <th>Sample Type</th>
+                        <th>Turnaround (min)</th>
+                        <th style="width:100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.TestName</td>
+                            <td>@item.TestCategory?.CategoryName</td>
+                            <td>@item.SampleType?.Name</td>
+                            <td>@item.TurnaroundTimeMinutes</td>
+                            <td>
+                                <form asp-action="RestoreTestType" method="post">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-rotate-left"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

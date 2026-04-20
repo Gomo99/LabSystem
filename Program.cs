@@ -21,45 +21,21 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.LogoutPath = "/Account/Logout";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);        // Persistent cookie lifetime
         options.SlidingExpiration = true;
         options.ReturnUrlParameter = "returnUrl";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Lax; // Must be Lax for OAuth redirects
-
-        options.Events = new CookieAuthenticationEvents
-        {
-            OnRedirectToLogin = ctx =>
-            {
-                ctx.Response.Redirect("/Account/Login?returnUrl=" +
-                    Uri.EscapeDataString(ctx.Request.Path));
-                return Task.CompletedTask;
-            },
-            OnRedirectToAccessDenied = ctx =>
-            {
-                ctx.Response.Redirect("/Account/AccessDenied");
-                return Task.CompletedTask;
-            }
-        };
+        options.Cookie.SameSite = SameSiteMode.Lax;
     });
-
 
 builder.Services.AddSession();
 
-
-
-
-
-
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -72,8 +48,6 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Account}/{action=Login}/{id?}")
-    .WithStaticAssets();
-
+    pattern: "{controller=Account}/{action=Login}/{id?}");
 
 app.Run();

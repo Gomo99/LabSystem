@@ -1,0 +1,97 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@using LaboratoryTestRequestManagementSystem.ViewModel
+@model IEnumerable<TestRequestListViewModel>
+@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "My Test Requests";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>My Test Requests</h1>
+        <div class="page-sub">Active test requests</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveTestRequests" class="btn btn-ghost btn-sm">
+            <i class="fas fa-archive"></i> Archived
+        </a>
+        <a asp-action="CreateTestRequest" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Request
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-file-medical"></i></div>
+            <h3>No test requests</h3>
+            <p>Create a new test request to get started.</p>
+            <a asp-action="CreateTestRequest" class="btn btn-primary">Create Request</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Request Date</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Tests</th>
+                        <th style="width:180px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in Model)
+                    {
+                        <tr>
+                            <td>#@req.Id</td>
+                            <td>@req.PatientName</td>
+                            <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (req.Urgency == Urgency.Stat)
+                                {
+                                    <span class="badge badge-danger">STAT</span>
+                                }
+                                else if (req.Urgency == Urgency.Urgent)
+                                {
+                                    <span class="badge badge-warn">Urgent</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-muted">Routine</span>
+                                }
+                            </td>
+                            <td>@req.Status</td>
+                            <td>@req.TestCount</td>
+                            <td>
+                                <div style="display:flex;gap:6px;">
+                                    <a asp-action="RequestDetails" asp-route-id="@req.Id" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    @if (req.Status == RequestStatus.Submitted || req.Status == RequestStatus.SamplesReceived)
+                                    {
+                                        <a asp-action="EditRequest" asp-route-id="@req.Id" class="btn btn-ghost btn-sm">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                    }
+                                    <form asp-action="DeleteRequest" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@req.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Archive this request?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

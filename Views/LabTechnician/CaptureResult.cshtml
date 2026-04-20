@@ -1,0 +1,76 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model CaptureResultViewModel
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Capture Results";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Capture Test Results</h1>
+        <div class="page-sub">@Model.TestName - @Model.PatientName</div>
+    </div>
+    <a asp-action="ProcessTestTypes" asp-route-requestId="@Model.TestRequestId" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    <!-- Patient Info -->
+    <div style="margin-bottom:20px;">
+        <h4 style="color:var(--teal);">Patient Information</h4>
+        <p><strong>Clinical Notes:</strong> @(Model.ClinicalNotes ?? "None")</p>
+        <div class="row">
+            <div class="col-md-4">
+                <strong>Medical Conditions:</strong>
+                <ul>@foreach (var c in Model.MedicalConditions){
+                <li>@c</li>
+                                }
+</ul>
+            </div>
+            <div class="col-md-4">
+                <strong>Allergies:</strong>
+                <ul>@foreach (var a in Model.Allergies){
+                <li>@a</li>
+                                }
+</ul>
+            </div>
+            <div class="col-md-4">
+                <strong>Medications:</strong>
+                <ul>@foreach (var m in Model.Medications){
+                <li>@m</li>
+                                }
+</ul>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.NormalRangeMin.HasValue && Model.NormalRangeMax.HasValue)
+    {
+        <p><strong>Normal Range:</strong> @Model.NormalRangeMin - @Model.NormalRangeMax @Model.UnitsOfMeasurement</p>
+    }
+
+    <form asp-action="CaptureResult" method="post">
+        <input type="hidden" asp-for="TestRequestId" />
+        <input type="hidden" asp-for="TestTypeId" />
+
+        <div class="form-group">
+            <label asp-for="ResultValue" class="form-label"></label>
+            <input asp-for="ResultValue" class="form-control" autofocus />
+            <span asp-validation-for="ResultValue" class="text-danger"></span>
+            @if (!string.IsNullOrEmpty(Model.UnitsOfMeasurement))
+            {
+                <small style="color:var(--muted);">Unit: @Model.UnitsOfMeasurement</small>
+            }
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Notes" class="form-label"></label>
+            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Results</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

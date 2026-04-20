@@ -1,0 +1,89 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model OrderCreateViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Create Order";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Create Purchase Order</h1>
+        <div class="page-sub">Order low-stock items by supplier</div>
+    </div>
+    <a asp-action="Orders" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    @if (ViewBag.LowStockBySupplier == null || !((IEnumerable<object>)ViewBag.LowStockBySupplier).Any())
+    {
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <span>No items are currently below reorder level.</span>
+        </div>
+    }
+    else
+    {
+        <form asp-action="CreateOrder" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @foreach (var group in ViewBag.LowStockBySupplier)
+            {
+                <div class="supplier-group" style="margin-bottom:30px;">
+                    <h3 style="font-size:1rem;color:var(--teal);margin-bottom:15px;">
+                        <i class="fas fa-truck"></i> @group.Key.SupplierName
+                        <span style="margin-left:10px;font-size:.8rem;color:var(--muted);">@group.Key.EmailAddress</span>
+                    </h3>
+                    <input type="hidden" name="SupplierId" value="@group.Key.Id" />
+
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Select</th>
+                                    <th>Consumable</th>
+                                    <th>Current Stock</th>
+                                    <th>Reorder Level</th>
+                                    <th>Quantity to Order</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cons in group)
+                                {
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" class="item-checkbox" data-supplier="@group.Key.Id" onchange="toggleQuantity(this)" />
+                                        </td>
+                                        <td>@cons.ConsumableName</td>
+                                        <td style="@(cons.QuantityOnHand <= cons.ReorderLevel ? "color:var(--warning);font-weight:600;" : "")">@cons.QuantityOnHand</td>
+                                        <td>@cons.ReorderLevel</td>
+                                        <td>
+                                            <input type="number" name="ItemQuantities[@cons.Id]" value="0" min="0" class="form-control quantity-input"
+                                                   style="width:100px;" disabled />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Place Order for @group.Key.SupplierName</button>
+                </div>
+            }
+        </form>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function toggleQuantity(checkbox) {
+            const row = checkbox.closest('tr');
+            const qtyInput = row.querySelector('.quantity-input');
+            qtyInput.disabled = !checkbox.checked;
+            if (checkbox.checked) {
+                qtyInput.value = 1;
+                qtyInput.focus();
+            } else {
+                qtyInput.value = 0;
+            }
+        }
+    </script>
+}

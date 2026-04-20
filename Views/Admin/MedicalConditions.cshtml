@@ -1,0 +1,101 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@using LaboratoryTestRequestManagementSystem.ViewModel
+@model IEnumerable<MedicalCondition>
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Medical Conditions";
+    var filter = new AdminFilterViewModel
+    {
+        SearchTerm = Context.Request.Query["SearchTerm"],
+        Category = Context.Request.Query["Category"],
+        ShowInactive = Context.Request.Query["ShowInactive"] == "true"
+    };
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Medical Conditions</h1>
+        <div class="page-sub">Manage chronic conditions</div>
+    </div>
+    <a asp-action="CreateMedicalCondition" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Condition
+    </a>
+</div>
+
+<div class="card">
+    <form method="get" class="search-bar">
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" name="SearchTerm" placeholder="Search by name..." value="@filter.SearchTerm" />
+        </div>
+        <select name="Category" class="form-select" style="width:auto;">
+            <option value="">All Categories</option>
+            @foreach (var cat in ViewBag.Categories)
+            {
+                <!option value="@cat" selected="@(filter.Category == cat ? "selected" : null)">@cat</!option>
+            }
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;color:var(--muted);">
+            <input type="checkbox" name="ShowInactive" value="true" @(filter.ShowInactive ? "checked" : "") /> Show Inactive
+        </label>
+        <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+        <a asp-action="MedicalConditions" class="btn btn-ghost btn-sm">Reset</a>
+    </form>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th style="width:160px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@(item.Category ?? "—")</td>
+                        <td>
+                            @if (item.Status == Status.Active)
+                            {
+                                <span class="badge badge-teal">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-muted">Inactive</span>
+                            }
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:6px;">
+                                <a asp-action="EditMedicalCondition" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                @if (item.Status == Status.Active)
+                                {
+                                    <form asp-action="DeleteMedicalCondition" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this condition?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form asp-action="RestoreMedicalCondition" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-warning btn-sm" title="Restore">
+                                            <i class="fas fa-rotate-left"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

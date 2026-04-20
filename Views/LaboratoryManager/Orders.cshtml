@@ -1,0 +1,140 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@model IEnumerable<Order>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Orders";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Orders</h1>
+        <div class="page-sub">Purchase orders</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveOrders" class="btn btn-ghost btn-sm">
+            <i class="fas fa-archive"></i> Archived
+        </a>
+        <a asp-action="CreateOrder" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Order
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-file-invoice"></i></div>
+            <h3>No orders</h3>
+            <p>Create a new purchase order.</p>
+            <a asp-action="CreateOrder" class="btn btn-primary">Create Order</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Supplier</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Business Status</th>
+                        <th style="width:240px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model)
+                    {
+                        <tr>
+                            <td>@order.OrderNumber</td>
+                            <td>@order.Supplier?.SupplierName</td>
+                            <td>@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                            <td>@order.OrderItems.Count</td>
+                            <td>
+                                @switch (order.OrderStatus)
+                                {
+                                    case OrderStatus.Ordered:
+                                        <span class="badge badge-warn">Ordered</span>
+                                        break;
+                                    case OrderStatus.PartiallyComplete:
+                                        <span class="badge badge-teal">Partially Complete</span>
+                                        break;
+                                    case OrderStatus.Complete:
+                                        <span class="badge badge-green">Complete</span>
+                                        break;
+                                    case OrderStatus.Cancelled:
+                                        <span class="badge badge-danger">Cancelled</span>
+                                        break;
+                                }
+                            </td>
+                            <td>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <a asp-action="EditOrder" asp-route-id="@order.Id" class="btn btn-secondary btn-sm @(order.OrderStatus != OrderStatus.Ordered ? "disabled" : "")">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    @if (order.OrderStatus == OrderStatus.Ordered || order.OrderStatus == OrderStatus.PartiallyComplete)
+                                    {
+                                        <form asp-action="MarkOrderReceived" method="post" style="display:inline;">
+                                            <input type="hidden" name="orderId" value="@order.Id" />
+                                            <button type="submit" class="btn btn-success btn-sm">Mark Received</button>
+                                        </form>
+                                    }
+                                    @if (order.OrderStatus == OrderStatus.Ordered)
+                                    {
+                                        <button type="button" class="btn btn-warning btn-sm" onclick="openCancelOrderModal(@order.Id, '@order.OrderNumber')">
+                                            Cancel
+                                        </button>
+                                    }
+                                    <form asp-action="DeleteOrder" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@order.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Archive this order?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
+            <form asp-action="CancelOrder" method="post">
+                <input type="hidden" name="orderId" id="cancelOrderId" />
+                <div class="modal-header">
+                    <h5 class="modal-title" style="color:var(--white);">Cancel Order <span id="cancelOrderNumber"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Cancellation Reason</label>
+                        <textarea name="cancellationReason" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Confirm Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openCancelOrderModal(id, number) {
+            document.getElementById('cancelOrderId').value = id;
+            document.getElementById('cancelOrderNumber').textContent = '#' + number;
+            new bootstrap.Modal(document.getElementById('cancelOrderModal')).show();
+        }
+    </script>
+}

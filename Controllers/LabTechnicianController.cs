@@ -25,7 +25,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _pdfService = pdfService;
         }
 
-        public async Task<IActionResult> Dashboard(string? filterUrgency, int? filterCategoryId, string? filterDueTime, string? filterRequestNumber)
+        public async Task<IActionResult> DashBoard(string? filterUrgency, int? filterCategoryId, string? filterDueTime, string? filterRequestNumber)
         {
             int technicianId = GetCurrentTechnicianId();
 

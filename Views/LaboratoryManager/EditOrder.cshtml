@@ -1,0 +1,91 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@using LaboratoryTestRequestManagementSystem.ViewModel
+@model EditOrderViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Edit Order";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Edit Order #@Model.OrderNumber</h1>
+        <div class="page-sub">@Model.SupplierName | @Model.OrderDate.ToString("dd/MM/yyyy")</div>
+    </div>
+    <a asp-action="Orders" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    <form asp-action="EditOrder" method="post">
+        <input type="hidden" asp-for="OrderId" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <h4 style="font-size:1rem;margin-bottom:15px;color:var(--teal);">Current Items</h4>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Consumable</th>
+                        <th>Quantity</th>
+                        <th>Status</th>
+                        <th>Remove</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                @Model.Items[i].ConsumableName
+                                <input type="hidden" asp-for="Items[i].OrderItemId" />
+                                <input type="hidden" asp-for="Items[i].ConsumableId" />
+                                <input type="hidden" asp-for="Items[i].ConsumableName" />
+                                <input type="hidden" asp-for="Items[i].Status" />
+                            </td>
+                            <td>
+                                @if (Model.Items[i].Status == OrderItemStatus.Ordered)
+                                {
+                                    <input asp-for="Items[i].QuantityOrdered" class="form-control" type="number" min="1" style="width:100px;" />
+                                }
+                                else
+                                {
+                                    <span>@Model.Items[i].QuantityOrdered</span>
+                                    <input type="hidden" asp-for="Items[i].QuantityOrdered" />
+                                }
+                            </td>
+                            <td>@Model.Items[i].Status</td>
+                            <td>
+                                @if (Model.Items[i].Status == OrderItemStatus.Ordered)
+                                {
+                                    <input asp-for="Items[i].Remove" type="checkbox" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <h4 style="font-size:1rem;margin:20px 0 15px;color:var(--teal);">Add New Item</h4>
+        <div class="row">
+            <div class="col-md-6 form-group">
+                <select asp-for="NewConsumableId" class="form-select" asp-items="ViewBag.AvailableConsumables">
+                    <option value="">-- Select Consumable --</option>
+                </select>
+            </div>
+            <div class="col-md-4 form-group">
+                <input asp-for="NewQuantity" class="form-control" type="number" min="1" placeholder="Quantity" />
+            </div>
+        </div>
+
+        <hr />
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

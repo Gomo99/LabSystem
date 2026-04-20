@@ -1,0 +1,91 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model PatientDetailsViewModel
+@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Patient Details";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Patient Details</h1>
+        <div class="page-sub">@Model.FirstName @Model.LastName</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary btn-sm">
+            <i class="fas fa-pen"></i> Edit
+        </a>
+        <a asp-action="Patients" class="btn btn-ghost btn-sm">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+            <h3 style="font-size:1rem;margin-bottom:16px;color:var(--teal);">Personal Information</h3>
+            <dl style="display:grid;gap:8px;">
+                <div><dt style="color:var(--muted);font-size:.8rem;">Full Name</dt><dd>@Model.FirstName @Model.LastName</dd></div>
+                <div><dt style="color:var(--muted);font-size:.8rem;">SA ID Number</dt><dd>@Model.SouthAfricanIdNumber</dd></div>
+                <div><dt style="color:var(--muted);font-size:.8rem;">Date of Birth</dt><dd>@Model.DateOfBirth.ToString("dd/MM/yyyy")</dd></div>
+                <div><dt style="color:var(--muted);font-size:.8rem;">Cellphone</dt><dd>@Model.CellphoneNumber</dd></div>
+                <div><dt style="color:var(--muted);font-size:.8rem;">Email</dt><dd>@Model.Email</dd></div>
+                <div><dt style="color:var(--muted);font-size:.8rem;">Home Address</dt><dd>@Model.HomeAddress</dd></div>
+            </dl>
+        </div>
+        <div>
+            <h3 style="font-size:1rem;margin-bottom:16px;color:var(--teal);">Medical History</h3>
+            <div style="margin-bottom:20px;">
+                <h4 style="font-size:.85rem;color:var(--muted);">Chronic Conditions</h4>
+                @if (Model.MedicalConditions.Any())
+                {
+                    <ul style="list-style:none;margin-top:5px;">
+                        @foreach (var cond in Model.MedicalConditions)
+                        {
+                            <li style="padding:4px 0;"><i class="fas fa-circle" style="font-size:.4rem;color:var(--teal);margin-right:8px;"></i>@cond</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+
+                    <p style="color:var(--muted);">None recorded</p>
+                }
+            </div>
+            <div style="margin-bottom:20px;">
+                <h4 style="font-size:.85rem;color:var(--muted);">Allergies</h4>
+                @if (Model.Allergies.Any())
+                {
+                    <ul style="list-style:none;margin-top:5px;">
+                        @foreach (var allergy in Model.Allergies)
+                        {
+                            <li style="padding:4px 0;"><i class="fas fa-circle" style="font-size:.4rem;color:var(--warning);margin-right:8px;"></i>@allergy</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+
+                    <p style="color:var(--muted);">None recorded</p>
+                }
+            </div>
+            <div>
+                <h4 style="font-size:.85rem;color:var(--muted);">Current Medications</h4>
+                @if (Model.Medications.Any())
+                {
+                    <ul style="list-style:none;margin-top:5px;">
+                        @foreach (var med in Model.Medications)
+                        {
+                            <li style="padding:4px 0;"><i class="fas fa-circle" style="font-size:.4rem;color:var(--success);margin-right:8px;"></i>@med</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+
+                    <p style="color:var(--muted);">None recorded</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

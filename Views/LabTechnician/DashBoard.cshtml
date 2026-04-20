@@ -1,0 +1,179 @@
+﻿@model TechnicianDashboardViewModel
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Dashboard</h1>
+        <div class="page-sub">Your workload at a glance</div>
+    </div>
+</div>
+
+<!-- Filter Panel -->
+<div class="card">
+    <form method="get" asp-action="Dashboard" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Urgency</label>
+            <select name="filterUrgency" class="form-select" asp-items="Model.UrgencyOptions">
+                <option value="">All</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Category</label>
+            <select name="filterCategoryId" class="form-select" asp-items="Model.CategoryOptions">
+                <option value="">All</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Due Time</label>
+            <select name="filterDueTime" class="form-select" asp-items="Model.DueTimeOptions"></select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Request Number</label>
+            <input type="text" name="filterRequestNumber" class="form-control" placeholder="REQ-000123" value="@Model.FilterRequestNumber" />
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <a asp-action="Dashboard" class="btn btn-ghost">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-flask"></i></div>
+        <div><div class="stat-val">@Model.SelectedTestsCount</div><div class="stat-label">My Tests</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-hourglass-start"></i></div>
+        <div><div class="stat-val">@Model.WaitingForSelectionCount</div><div class="stat-label">Waiting for Selection</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-check-double"></i></div>
+        <div><div class="stat-val">@Model.WaitingForVerificationCount</div><div class="stat-label">Waiting for Verification</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon warn"><i class="fas fa-rotate-left"></i></div>
+        <div><div class="stat-val">@Model.WaitingForReviewCount</div><div class="stat-label">Waiting for Review</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon danger"><i class="fas fa-bolt"></i></div>
+        <div><div class="stat-val">@Model.UrgentTestsCount</div><div class="stat-label">Urgent (STAT)</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon danger"><i class="fas fa-clock"></i></div>
+        <div><div class="stat-val">@Model.OverdueTestsCount</div><div class="stat-label">Overdue</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon warn"><i class="fas fa-hourglass-end"></i></div>
+        <div><div class="stat-val">@Model.NearingLimitCount</div><div class="stat-label">Nearing Limit</div></div>
+    </div>
+</div>
+
+<!-- Tabs for Detailed Lists -->
+<ul class="nav nav-tabs" id="dashboardTabs" role="tablist" style="border-bottom:1px solid var(--border-soft);margin-bottom:20px;">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="selected-tab" data-bs-toggle="tab" data-bs-target="#selected" type="button" style="background:transparent;color:var(--teal);border:none;">My Tests</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="waiting-tab" data-bs-toggle="tab" data-bs-target="#waiting" type="button" style="background:transparent;color:var(--muted);border:none;">Waiting for Selection</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="verify-tab" data-bs-toggle="tab" data-bs-target="#verify" type="button" style="background:transparent;color:var(--muted);border:none;">Waiting for Verification</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" style="background:transparent;color:var(--muted);border:none;">Waiting for Review</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="urgent-tab" data-bs-toggle="tab" data-bs-target="#urgent" type="button" style="background:transparent;color:var(--muted);border:none;">Urgent</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="overdue-tab" data-bs-toggle="tab" data-bs-target="#overdue" type="button" style="background:transparent;color:var(--muted);border:none;">Overdue</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" id="nearing-tab" data-bs-toggle="tab" data-bs-target="#nearing" type="button" style="background:transparent;color:var(--muted);border:none;">Nearing Limit</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    @foreach (var tab in new[] {
+        new { Id = "selected", Title = "My Tests", Items = Model.SelectedTests },
+        new { Id = "waiting", Title = "Waiting for Selection", Items = Model.WaitingForSelectionTests },
+        new { Id = "verify", Title = "Waiting for Verification", Items = Model.WaitingForVerificationTests },
+        new { Id = "review", Title = "Waiting for Review", Items = Model.WaitingForReviewTests },
+        new { Id = "urgent", Title = "Urgent Tests", Items = Model.UrgentTests },
+        new { Id = "overdue", Title = "Overdue Tests", Items = Model.OverdueTests },
+        new { Id = "nearing", Title = "Tests Nearing Limit", Items = Model.NearingLimitTests }
+        })
+    {
+        <div class="tab-pane fade @(tab.Id == "selected" ? "show active" : "")" id="@tab.Id" role="tabpanel">
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Request #</th>
+                                <th>Patient</th>
+                                <th>Test</th>
+                                <th>Urgency</th>
+                                <th>Category</th>
+                                <th>Started</th>
+                                <th>Expected Completion</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in tab.Items)
+                            {
+                                <tr class="@(item.IsOverdue ? "table-danger" : item.IsNearingLimit ? "table-warning" : "")">
+                                    <td>REQ-@item.TestRequestId.ToString("D6")</td>
+                                    <td>@item.PatientName</td>
+                                    <td>@item.TestName</td>
+                                    <td>
+                                        @if (item.Urgency == Urgency.Stat)
+                                        {
+                                            <span class="badge badge-danger">STAT</span>
+                                        }
+                                        else if (item.Urgency == Urgency.Urgent)
+                                        {
+                                            <span class="badge badge-warn">Urgent</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-muted">Routine</span>
+                                        }
+                                    </td>
+                                    <td>@item.CategoryName</td>
+                                    <td>@(item.StartDateTime?.ToString("dd/MM HH:mm") ?? "—")</td>
+                                    <td>@(item.ExpectedCompletionTime?.ToString("dd/MM HH:mm") ?? "—")</td>
+                                    <td>@item.Status</td>
+                                    <td>
+                                        <a asp-action="ProcessTestTypes" asp-route-requestId="@item.TestRequestId" class="btn btn-secondary btn-sm">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        @if (tab.Id == "waiting")
+                                        {
+                                            <form asp-action="StartTest" method="post" style="display:inline;">
+                                                <input type="hidden" name="testRequestId" value="@item.TestRequestId" />
+                                                <input type="hidden" name="testTypeId" value="@item.TestTypeId" />
+                                                <button type="submit" class="btn btn-success btn-sm">Start</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+}

@@ -1,0 +1,60 @@
+﻿@model IEnumerable<PendingTestRequestViewModel>
+@{
+    Layout = "~/Views/Shared/_TechnicianLayout.cshtml";
+    ViewData["Title"] = "Archived Test Requests";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Archived Test Requests</h1>
+        <div class="page-sub">Soft-deleted requests</div>
+    </div>
+    <a asp-action="PendingTestRequests" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-archive"></i></div>
+            <h3>No archived requests</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Request Date</th>
+                        <th>Urgency</th>
+                        <th>Samples</th>
+                        <th style="width:100px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in Model)
+                    {
+                        <tr>
+                            <td>#@req.Id</td>
+                            <td>@req.PatientName</td>
+                            <td>@req.DoctorName</td>
+                            <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
+                            <td>@req.Urgency</td>
+                            <td>@req.SampleCount</td>
+                            <td>
+                                <form asp-action="RestoreRequest" method="post">
+                                    <input type="hidden" name="id" value="@req.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-rotate-left"></i> Restore</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

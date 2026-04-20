@@ -11,5 +11,7 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
         public string? ResultValue { get; set; }
         public bool IsAbnormal { get; set; }
         public string? Notes { get; set; }
+
+        public string? NormalRange { get; set; }
     }
 }

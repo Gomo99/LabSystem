@@ -1,0 +1,70 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model LabTechnicianViewModel
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Edit Lab Technician";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Edit Lab Technician</h1>
+    </div>
+    <a asp-action="Technicians" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card" style="max-width:800px;">
+    <form asp-action="EditTechnician" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="SAIDNumber" class="form-label"></label>
+                <input asp-for="SAIDNumber" class="form-control" />
+                <span asp-validation-for="SAIDNumber" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="EmployeeNumber" class="form-label"></label>
+                <input asp-for="EmployeeNumber" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ContactNumber" class="form-label"></label>
+                <input asp-for="ContactNumber" class="form-control" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Assigned Test Types</label>
+                <div class="check-grid">
+                    @foreach (var tt in ViewBag.TestTypes)
+                    {
+                        <div class="check-item">
+                            <input type="checkbox" name="SelectedTestTypeIds" value="@tt.Id" id="tt_@tt.Id"
+                                   @(Model.SelectedTestTypeIds.Contains(tt.Id) ? "checked" : "") />
+                            <label for="tt_@tt.Id">@tt.TestName</label>
+                        </div>
+                    }
+                </div>
+                <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
+            </div>
+        </div>
+        <p class="text-muted" style="font-size:.8rem;">Password cannot be edited here.</p>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

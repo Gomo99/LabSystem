@@ -1,0 +1,83 @@
+﻿@model IEnumerable<TestType>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Test Types";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Test Types</h1>
+        <div class="page-sub">Manage laboratory tests</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        <a asp-action="InactiveTestTypes" class="btn btn-ghost btn-sm">
+            <i class="fas fa-archive"></i> View Inactive
+        </a>
+        <a asp-action="CreateTestType" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Test Type
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-vials"></i></div>
+            <h3>No test types</h3>
+            <p>Create a new test type to get started.</p>
+            <a asp-action="CreateTestType" class="btn btn-primary">Create Test Type</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Category</th>
+                        <th>Sample Type</th>
+                        <th>Turnaround (min)</th>
+                        <th>Normal Range</th>
+                        <th style="width:160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.TestName</td>
+                            <td>@item.TestCategory?.CategoryName</td>
+                            <td>@item.SampleType?.Name</td>
+                            <td>@item.TurnaroundTimeMinutes</td>
+                            <td>
+                                @if (item.NormalRangeMin.HasValue && item.NormalRangeMax.HasValue)
+                                {
+                                    <span>@item.NormalRangeMin - @item.NormalRangeMax @item.UnitsOfMeasurement</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td>
+                                <div style="display:flex;gap:6px;">
+                                    <a asp-action="EditTestType" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form asp-action="DeleteTestType" method="post" style="display:inline;">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this test type?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,0 +1,77 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@model IEnumerable<Order>
+@{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Archived Orders";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Archived Orders</h1>
+        <div class="page-sub">Soft-deleted purchase orders</div>
+    </div>
+    <a asp-action="Orders" class="btn btn-ghost btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Active
+    </a>
+</div>
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-archive"></i></div>
+            <h3>No archived orders</h3>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Supplier</th>
+                        <th>Date</th>
+                        <th>Business Status</th>
+                        <th style="width:100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model)
+                    {
+                        <tr>
+                            <td>@order.OrderNumber</td>
+                            <td>@order.Supplier?.SupplierName</td>
+                            <td>@order.OrderDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @switch (order.OrderStatus)
+                                {
+                                    case OrderStatus.Ordered:
+                                        <span class="badge badge-warn">Ordered</span>
+                                        break;
+                                    case OrderStatus.PartiallyComplete:
+                                        <span class="badge badge-teal">Partially Complete</span>
+                                        break;
+                                    case OrderStatus.Complete:
+                                        <span class="badge badge-green">Complete</span>
+                                        break;
+                                    case OrderStatus.Cancelled:
+                                        <span class="badge badge-danger">Cancelled</span>
+                                        break;
+                                }
+                            </td>
+                            <td>
+                                <form asp-action="RestoreOrder" method="post">
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-rotate-left"></i> Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

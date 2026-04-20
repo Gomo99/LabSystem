@@ -1,0 +1,41 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model DoctorReportFilterViewModel
+@{
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Generate Test Requests Report";
+}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Test Requests Report</h1>
+        <div class="page-sub">Generate PDF report for a date range</div>
+    </div>
+</div>
+
+<div class="card" style="max-width:600px;">
+    <form asp-action="TestRequestsReport" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="row">
+            <div class="col-md-6 form-group">
+                <label asp-for="StartDate" class="form-label"></label>
+                <input asp-for="StartDate" class="form-control" type="date" />
+                <span asp-validation-for="StartDate" class="text-danger"></span>
+            </div>
+            <div class="col-md-6 form-group">
+                <label asp-for="EndDate" class="form-label"></label>
+                <input asp-for="EndDate" class="form-control" type="date" />
+                <span asp-validation-for="EndDate" class="text-danger"></span>
+            </div>
+        </div>
+        <p class="text-muted" style="font-size:.8rem;margin:10px 0 20px;">
+            <i class="fas fa-info-circle"></i> Includes all test requests submitted by you within the selected period.
+        </p>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Generate PDF
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
