@@ -52,9 +52,10 @@
         SamplesReceived,
         InProgress,
         Completed,
+        Verified,
+        ToBeReviewed,
         ReleasedByDoctor,
-        Cancelled,
-        Verified
+        Cancelled
     }
 
 

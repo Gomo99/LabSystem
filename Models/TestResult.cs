@@ -1,31 +1,31 @@
-﻿namespace LaboratoryTestRequestManagementSystem.Models
+﻿using LaboratoryTestRequestManagementSystem.AppStatus;
+using System.ComponentModel.DataAnnotations;
+
+namespace LaboratoryTestRequestManagementSystem.Models
 {
-    using global::LaboratoryTestRequestManagementSystem.AppStatus;
-    using System.ComponentModel.DataAnnotations;
-
-    namespace LaboratoryTestRequestManagementSystem.Models
+    public class TestResult
     {
-        public class TestResult
-        {
-            public int Id { get; set; }
+        public int Id { get; set; }
 
-            [Required]
-            public int TestRequestTestTypeId { get; set; }
-            public TestRequestTestType TestRequestTestType { get; set; } = null!;
+        [Required]
+        public int TestRequestId { get; set; }
+        public TestRequest TestRequest { get; set; } = null!;
 
-            public string? ResultValue { get; set; }       // Could be numeric or text
-            public string? Notes { get; set; }
+        [Required]
+        public int TestTypeId { get; set; }
+        public TestType TestType { get; set; } = null!;
 
-            public bool IsAbnormal { get; set; }
+        public string? ResultValue { get; set; }
+        public string? Notes { get; set; }
 
-            public DateTime? CompletedDate { get; set; }
-            public DateTime? VerifiedDate { get; set; }
+        public bool IsAbnormal { get; set; }
 
-            public int? VerifiedById { get; set; }
-            public Employee? VerifiedBy { get; set; }
+        public DateTime? CompletedDate { get; set; }
+        public DateTime? VerifiedDate { get; set; }
 
-            // For soft delete if needed (not required for doctor view)
-            public Status Status { get; set; } = Status.Active;
-        }
+        public int? VerifiedById { get; set; }
+        public Employee? VerifiedBy { get; set; }
+
+        public Status Status { get; set; } = Status.Active;
     }
 }

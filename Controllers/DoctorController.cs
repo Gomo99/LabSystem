@@ -363,6 +363,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         // View details of a specific test request
+        // View details of a specific test request
         public async Task<IActionResult> RequestDetails(int id)
         {
             int doctorId = GetCurrentDoctorId();
@@ -375,10 +376,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request == null) return NotFound();
 
-            // Load results if available
+            // Load results for this request
             var results = await _context.TestResults
-                .Include(tr => tr.TestRequestTestType).ThenInclude(trt => trt.TestType)
-                .Where(tr => tr.TestRequestTestType.TestRequestId == id)
+                .Where(r => r.TestRequestId == id)
                 .ToListAsync();
 
             var model = new TestRequestDetailsViewModel
@@ -393,15 +393,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 DateCancelled = request.DateCancelled,
                 CancellationReason = request.CancellationReason,
 
-                TestTypes = request.TestRequestTestTypes.Select(trt => new TestTypeItemViewModel
+                TestTypes = request.TestRequestTestTypes.Select(trt =>
                 {
-                    TestName = trt.TestType.TestName,
-                    SampleType = trt.TestType.SampleType?.Name ?? "N/A",
-                    Status = trt.RequestStatus,
-                    // Add result value and abnormal flag for display
-                    ResultValue = results.FirstOrDefault(r => r.TestRequestTestTypeId == trt.TestTypeId)?.ResultValue,
-                    IsAbnormal = results.FirstOrDefault(r => r.TestRequestTestTypeId == trt.TestTypeId)?.IsAbnormal ?? false,
-                    Notes = results.FirstOrDefault(r => r.TestRequestTestTypeId == trt.TestTypeId)?.Notes
+                    var result = results.FirstOrDefault(r => r.TestTypeId == trt.TestTypeId);
+                    return new TestTypeItemViewModel
+                    {
+                        TestName = trt.TestType.TestName,
+                        SampleType = trt.TestType.SampleType?.Name ?? "N/A",
+                        Status = trt.RequestStatus,
+                        ResultValue = result?.ResultValue,
+                        IsAbnormal = result?.IsAbnormal ?? false,
+                        Notes = result?.Notes
+                    };
                 }).ToList(),
                 Samples = request.Samples.Select(s => new SampleItemViewModel
                 {
@@ -862,32 +865,26 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var to = endDate ?? DateTime.Today;
 
             var query = _context.TestResults
-                .Include(tr => tr.TestRequestTestType)
-                    .ThenInclude(trt => trt.TestType)
-                .Include(tr => tr.TestRequestTestType)
-                    .ThenInclude(trt => trt.TestRequest)
-                        .ThenInclude(req => req.Patient)
-                .Where(tr => tr.IsAbnormal
-                             && tr.TestRequestTestType.TestRequest.DoctorId == doctorId
-                             && tr.CompletedDate.HasValue
-                             && tr.CompletedDate.Value.Date >= from.Date
-                             && tr.CompletedDate.Value.Date <= to.Date);
+                .Include(r => r.TestRequest).ThenInclude(tr => tr.Patient)
+                .Include(r => r.TestType)
+                .Where(r => r.IsAbnormal
+                            && r.TestRequest.DoctorId == doctorId
+                            && r.CompletedDate.HasValue
+                            && r.CompletedDate.Value.Date >= from.Date
+                            && r.CompletedDate.Value.Date <= to.Date);
 
             var alerts = await query
-                .OrderByDescending(tr => tr.CompletedDate)
-                .Select(tr => new AlertViewModel
+                .OrderByDescending(r => r.CompletedDate)
+                .Select(r => new AlertViewModel
                 {
-                    TestRequestId = tr.TestRequestTestType.TestRequestId,
-                    PatientName = tr.TestRequestTestType.TestRequest.Patient.FirstName + " " +
-                                  tr.TestRequestTestType.TestRequest.Patient.LastName,
-                    TestName = tr.TestRequestTestType.TestType.TestName,
-                    ResultValue = tr.ResultValue ?? "N/A",
-                    NormalRange = tr.TestRequestTestType.TestType.NormalRangeMin.HasValue &&
-                                  tr.TestRequestTestType.TestType.NormalRangeMax.HasValue
-                        ? $"{tr.TestRequestTestType.TestType.NormalRangeMin} - {tr.TestRequestTestType.TestType.NormalRangeMax} " +
-                          $"{tr.TestRequestTestType.TestType.UnitsOfMeasurement}"
+                    TestRequestId = r.TestRequestId,
+                    PatientName = r.TestRequest.Patient.FirstName + " " + r.TestRequest.Patient.LastName,
+                    TestName = r.TestType.TestName,
+                    ResultValue = r.ResultValue ?? "N/A",
+                    NormalRange = r.TestType.NormalRangeMin.HasValue && r.TestType.NormalRangeMax.HasValue
+                        ? $"{r.TestType.NormalRangeMin} - {r.TestType.NormalRangeMax} {r.TestType.UnitsOfMeasurement}"
                         : null,
-                    CompletedDate = tr.CompletedDate
+                    CompletedDate = r.CompletedDate
                 })
                 .ToListAsync();
 

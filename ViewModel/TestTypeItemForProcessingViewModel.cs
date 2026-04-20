@@ -13,11 +13,21 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
         public string? TechnicianName { get; set; }
         public DateTime? StartDateTime { get; set; }
         public DateTime? CompletionDateTime { get; set; }
-
-        // CanStart remains simple
         public bool CanStart => Status == RequestStatus.Submitted;
-
-        // CanComplete will be set by the controller
         public bool CanComplete { get; set; }
+
+        // Verification properties
+        public int? VerifiedById { get; set; }
+        public string? VerifiedByName { get; set; }
+        public DateTime? VerifiedDateTime { get; set; }
+        public string? VerificationNotes { get; set; }
+        public bool CanVerify { get; set; }
+        public bool CanReturnForReview { get; set; }
+        public bool CanResubmit { get; set; }
+
+        // ✅ Turnaround / Overdue
+        public int TurnaroundTimeMinutes { get; set; }
+        public DateTime? ExpectedCompletionTime { get; set; }
+        public bool IsOverdue { get; set; }
     }
 }

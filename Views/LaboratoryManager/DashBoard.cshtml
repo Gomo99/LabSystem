@@ -1,5 +1,90 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
 @{
+    Layout = "~/Views/Shared/_LabManagerLayout.cshtml";
+    ViewData["Title"] = "Dashboard";
 }
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Dashboard</h1>
+        <div class="page-sub">Welcome back — here's your laboratory overview</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a asp-action="LowStockAlert" class="btn btn-warning btn-sm">
+            <i class="fas fa-triangle-exclamation"></i> Low Stock
+        </a>
+        <a asp-action="CreateOrder" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> New Order
+        </a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-layer-group"></i></div>
+        <div><div class="stat-val">@(ViewBag.CategoryCount ?? "—")</div><div class="stat-label">Test Categories</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-vials"></i></div>
+        <div><div class="stat-val">@(ViewBag.TestTypeCount ?? "—")</div><div class="stat-label">Test Types</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon warn"><i class="fas fa-boxes-stacked"></i></div>
+        <div><div class="stat-val">@(ViewBag.LowStockCount ?? "—")</div><div class="stat-label">Low Stock Items</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-file-invoice"></i></div>
+        <div><div class="stat-val">@(ViewBag.ActiveOrderCount ?? "—")</div><div class="stat-label">Active Orders</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-user-doctor"></i></div>
+        <div><div class="stat-val">@(ViewBag.DoctorCount ?? "—")</div><div class="stat-label">Active Doctors</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal"><i class="fas fa-microscope"></i></div>
+        <div><div class="stat-val">@(ViewBag.TechnicianCount ?? "—")</div><div class="stat-label">Lab Technicians</div></div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <div class="section-title"><i class="fas fa-bolt"></i> Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <a asp-action="CreateTestCategory" class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> New Test Category</a>
+            <a asp-action="CreateTestType"     class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> New Test Type</a>
+            <a asp-action="CreateConsumable"   class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> New Consumable</a>
+            <a asp-action="CreateSupplier"     class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> New Supplier</a>
+            <a asp-action="CreateDoctor"       class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> Register Doctor</a>
+            <a asp-action="CreateTechnician"   class="btn btn-secondary" style="justify-content:flex-start;"><i class="fas fa-plus"></i> Register Technician</a>
+            <a asp-action="TestPerformanceReport" class="btn btn-ghost"  style="justify-content:flex-start;"><i class="fas fa-chart-bar"></i> Generate Report</a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="section-title"><i class="fas fa-clock-rotate-left"></i> System Status</div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border-soft);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success);"></div>
+                    <span style="font-size:.88rem;color:var(--off-white);">System Online</span>
+                </div>
+                <span class="badge badge-green">Operational</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border-soft);">
+                <span style="font-size:.88rem;color:var(--muted);">Pending Orders</span>
+                <span class="badge badge-warn">@(ViewBag.PendingOrders ?? 0) orders</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border-soft);">
+                <span style="font-size:.88rem;color:var(--muted);">Items below reorder</span>
+                <span class="badge badge-danger">@(ViewBag.LowStockCount ?? 0) items</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:.88rem;color:var(--muted);">Active Consumables</span>
+                <span class="badge badge-teal">@(ViewBag.ConsumableCount ?? 0) items</span>
+            </div>
+        </div>
+        <div style="margin-top:22px;">
+            <a asp-action="TestPerformanceReport" class="btn btn-primary" style="width:100%;justify-content:center;">
+                <i class="fas fa-file-pdf"></i> Generate Performance Report
+            </a>
+        </div>
+    </div>
+</div>
