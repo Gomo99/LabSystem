@@ -19,6 +19,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
 
+        // Standardized TempData keys
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
         public LaboratoryManagerController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
         {
             _context = context;
@@ -26,13 +30,23 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _pdfService = pdfService;
         }
 
-        public IActionResult DashBoard() => View();
+        // ======================================================================
+        //  HELPER METHODS (CLEAN + REUSABLE)
+        // ======================================================================
+        private void SetSuccess(string message)
+        {
+            TempData[SuccessMessageKey] = message;
+        }
 
-        #region Test Categories
+        private void SetError(string message)
+        {
+            TempData[ErrorMessageKey] = message;
+        }
+
+        public IActionResult DashBoard() => View();
 
         #region Test Categories (Soft Delete + Restore)
 
-        // List only active categories
         public async Task<IActionResult> TestCategories()
         {
             var categories = await _context.TestCategories
@@ -41,7 +55,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(categories);
         }
 
-        // List inactive categories (for restore)
         public async Task<IActionResult> InactiveTestCategories()
         {
             var categories = await _context.TestCategories
@@ -63,7 +76,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 CategoryName = model.CategoryName,
                 Description = model.Description,
-                Status = Status.Active          // ✅ New categories start as Active
+                Status = Status.Active
             };
             _context.TestCategories.Add(category);
             await _context.SaveChangesAsync();
@@ -95,12 +108,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             category.CategoryName = model.CategoryName;
             category.Description = model.Description;
-            category.Status = Status.Active; // Ensure edited category remains active (optional, depends on requirements)
+            category.Status = Status.Active;
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(TestCategories));
         }
 
-        // Soft delete – set status to Inactive
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteTestCategory(int id)
@@ -108,13 +120,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var category = await _context.TestCategories.FindAsync(id);
             if (category != null)
             {
-                category.Status = Status.Inactive;   // ✅ Soft delete
+                category.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(TestCategories));
         }
 
-        // Restore – set status back to Active
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreTestCategory(int id)
@@ -122,7 +133,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var category = await _context.TestCategories.FindAsync(id);
             if (category != null)
             {
-                category.Status = Status.Active;     // ✅ Restore
+                category.Status = Status.Active;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(InactiveTestCategories));
@@ -130,21 +141,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
-
-
-
-
-
-
-
-
-
-
         #region Test Types (Soft Delete + Restore)
 
-        // List only active test types
         public async Task<IActionResult> TestTypes()
         {
             var testTypes = await _context.TestTypes
@@ -156,7 +154,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(testTypes);
         }
 
-        // List inactive test types (for restore)
         public async Task<IActionResult> InactiveTestTypes()
         {
             var testTypes = await _context.TestTypes
@@ -194,10 +191,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 NormalRangeMin = model.NormalRangeMin,
                 NormalRangeMax = model.NormalRangeMax,
                 TurnaroundTimeMinutes = model.TurnaroundTimeMinutes,
-                Status = Status.Active          // ✅ New test types start as Active
+                Status = Status.Active
             };
 
-            // Add selected consumables
             foreach (var consId in model.SelectedConsumableIds)
             {
                 testType.TestTypeConsumables.Add(new TestTypeConsumable { ConsumableId = consId });
@@ -254,8 +250,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             testType.NormalRangeMin = model.NormalRangeMin;
             testType.NormalRangeMax = model.NormalRangeMax;
             testType.TurnaroundTimeMinutes = model.TurnaroundTimeMinutes;
-            testType.Status = Status.Active; // Ensure edited test type remains active (optional, depends on requirements)
-            // Update consumables
+            testType.Status = Status.Active;
+
             _context.TestTypeConsumables.RemoveRange(testType.TestTypeConsumables);
             foreach (var consId in model.SelectedConsumableIds)
             {
@@ -266,7 +262,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(TestTypes));
         }
 
-        // Soft delete – set status to Inactive
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteTestType(int id)
@@ -274,13 +269,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var testType = await _context.TestTypes.FindAsync(id);
             if (testType != null)
             {
-                testType.Status = Status.Inactive;   // ✅ Soft delete
+                testType.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(TestTypes));
         }
 
-        // Restore – set status back to Active
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreTestType(int id)
@@ -288,13 +282,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var testType = await _context.TestTypes.FindAsync(id);
             if (testType != null)
             {
-                testType.Status = Status.Active;     // ✅ Restore
+                testType.Status = Status.Active;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(InactiveTestTypes));
         }
 
-        // Updated PopulateDropdowns with activeOnly filter
         private async Task PopulateDropdowns(bool activeOnly = true)
         {
             var categoriesQuery = _context.TestCategories.AsQueryable();
@@ -305,7 +298,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 categoriesQuery = categoriesQuery.Where(c => c.Status == Status.Active);
                 consumablesQuery = consumablesQuery.Where(c => c.Status == Status.Active);
-                // SampleTypes might not have Status – add if needed
             }
 
             ViewBag.Categories = new SelectList(await categoriesQuery.ToListAsync(), "Id", "CategoryName");
@@ -315,14 +307,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
-
-        #endregion
-
         #region Consumables & Stock Adjustment (Soft Delete + Restore)
 
-        // List only active consumables
         public async Task<IActionResult> Consumables()
         {
             var consumables = await _context.Consumables
@@ -332,7 +318,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(consumables);
         }
 
-        // List inactive consumables (for restore)
         public async Task<IActionResult> InactiveConsumables()
         {
             var consumables = await _context.Consumables
@@ -369,7 +354,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 ReorderLevel = model.ReorderLevel,
                 QuantityOnHand = model.QuantityOnHand,
                 SupplierId = model.SupplierId,
-                Status = Status.Active          // ✅ New consumables start as Active
+                Status = Status.Active
             };
             _context.Consumables.Add(consumable);
             await _context.SaveChangesAsync();
@@ -415,12 +400,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             consumable.ReorderLevel = model.ReorderLevel;
             consumable.QuantityOnHand = model.QuantityOnHand;
             consumable.SupplierId = model.SupplierId;
-            consumable.Status = Status.Active; // Ensure edited consumable remains active (optional, depends on requirements)
+            consumable.Status = Status.Active;
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Consumables));
         }
 
-        // Soft delete – set status to Inactive
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConsumable(int id)
@@ -428,13 +412,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var consumable = await _context.Consumables.FindAsync(id);
             if (consumable != null)
             {
-                consumable.Status = Status.Inactive;   // ✅ Soft delete
+                consumable.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(Consumables));
         }
 
-        // Restore – set status back to Active
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreConsumable(int id)
@@ -442,13 +425,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var consumable = await _context.Consumables.FindAsync(id);
             if (consumable != null)
             {
-                consumable.Status = Status.Active;     // ✅ Restore
+                consumable.Status = Status.Active;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(InactiveConsumables));
         }
 
-        // Stock adjustment (unchanged, but only works on active consumables)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdjustStock(StockAdjustmentViewModel model)
@@ -471,7 +453,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #region Suppliers (Soft Delete + Restore)
 
-        // List only active suppliers
         public async Task<IActionResult> Suppliers()
         {
             var suppliers = await _context.Suppliers
@@ -480,7 +461,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(suppliers);
         }
 
-        // List inactive suppliers (for restore)
         public async Task<IActionResult> InactiveSuppliers()
         {
             var suppliers = await _context.Suppliers
@@ -503,7 +483,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 SupplierName = model.SupplierName,
                 ContactPerson = model.ContactPerson,
                 EmailAddress = model.EmailAddress,
-                Status = Status.Active          // ✅ New suppliers start as Active
+                Status = Status.Active
             };
             _context.Suppliers.Add(supplier);
             await _context.SaveChangesAsync();
@@ -538,12 +518,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             supplier.SupplierName = model.SupplierName;
             supplier.ContactPerson = model.ContactPerson;
             supplier.EmailAddress = model.EmailAddress;
-            // Status remains unchanged (preserve Active/Inactive)
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Suppliers));
         }
 
-        // Soft delete – set status to Inactive
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSupplier(int id)
@@ -551,13 +529,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var supplier = await _context.Suppliers.FindAsync(id);
             if (supplier != null)
             {
-                supplier.Status = Status.Inactive;   // ✅ Soft delete
+                supplier.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(Suppliers));
         }
 
-        // Restore – set status back to Active
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreSupplier(int id)
@@ -565,7 +542,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var supplier = await _context.Suppliers.FindAsync(id);
             if (supplier != null)
             {
-                supplier.Status = Status.Active;     // ✅ Restore
+                supplier.Status = Status.Active;
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(InactiveSuppliers));
@@ -573,15 +550,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
-
         #region Orders (Soft Delete + Cancel + Restore)
 
-        // Low stock alert – identifies consumables near or below reorder level
         public async Task<IActionResult> LowStockAlert()
         {
-            var threshold = 0.1m; // within 10% of reorder level
+            var threshold = 0.1m;
             var lowStockItems = await _context.Consumables
                 .Include(c => c.Supplier)
                 .Where(c => c.Status == Status.Active)
@@ -591,7 +564,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(lowStockItems);
         }
 
-        // Create order – grouped by supplier
         [HttpGet]
         public async Task<IActionResult> CreateOrder()
         {
@@ -630,7 +602,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 SupplierId = model.SupplierId,
                 OrderDate = DateTime.Now,
                 OrderStatus = OrderStatus.Ordered,
-                Status = Status.Active          // ✅ Active by default
+                Status = Status.Active
             };
 
             foreach (var item in model.ItemQuantities.Where(kv => kv.Value > 0))
@@ -647,7 +619,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            // Email supplier
             if (!string.IsNullOrEmpty(supplier.EmailAddress))
             {
                 string body = $"Dear {supplier.ContactPerson ?? supplier.SupplierName},\n\n" +
@@ -663,7 +634,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
-        // List active orders (Status = Active)
         public async Task<IActionResult> Orders()
         {
             var orders = await _context.Orders
@@ -675,7 +645,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(orders);
         }
 
-        // List inactive/soft-deleted orders
         public async Task<IActionResult> InactiveOrders()
         {
             var orders = await _context.Orders
@@ -687,7 +656,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(orders);
         }
 
-        // Mark entire order as received
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkOrderReceived(int orderId)
@@ -707,7 +675,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     consumable.QuantityOnHand += item.QuantityOrdered;
             }
 
-            // Update order business status
             if (order.OrderItems.All(i => i.OrderItemStatus == OrderItemStatus.Received))
                 order.OrderStatus = OrderStatus.Complete;
             else if (order.OrderItems.Any(i => i.OrderItemStatus == OrderItemStatus.Received))
@@ -717,7 +684,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
-        // Cancel entire order (with reason)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelOrder(int orderId, string cancellationReason)
@@ -732,7 +698,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             order.DateCancelled = DateTime.Now;
             order.CancellationReason = cancellationReason;
 
-            // Cancel all non-received items
             foreach (var item in order.OrderItems.Where(i => i.OrderItemStatus != OrderItemStatus.Received))
             {
                 item.OrderItemStatus = OrderItemStatus.Cancelled;
@@ -742,7 +707,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Notify supplier
             if (!string.IsNullOrEmpty(order.Supplier?.EmailAddress))
             {
                 await _emailService.SendEmailAsync(order.Supplier.EmailAddress,
@@ -754,7 +718,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
-        // Cancel individual order item
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelOrderItem(int orderItemId, string cancellationReason)
@@ -768,7 +731,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             orderItem.DateCancelled = DateTime.Now;
             orderItem.CancellationReason = cancellationReason;
 
-            // Update order status if needed
             var order = orderItem.Order;
             if (order.OrderItems.All(i => i.OrderItemStatus == OrderItemStatus.Received || i.OrderItemStatus == OrderItemStatus.Cancelled))
             {
@@ -780,7 +742,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Notify supplier
             if (!string.IsNullOrEmpty(order.Supplier?.EmailAddress))
             {
                 await _emailService.SendEmailAsync(order.Supplier.EmailAddress,
@@ -791,7 +752,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
-        // Soft delete order (set Status = Inactive)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteOrder(int id)
@@ -805,7 +765,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
-        // Restore soft-deleted order
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreOrder(int id)
@@ -819,8 +778,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(InactiveOrders));
         }
 
-
-        // GET: Edit Order
         [HttpGet]
         public async Task<IActionResult> EditOrder(int id)
         {
@@ -831,10 +788,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (order == null) return NotFound();
 
-            // Only allow editing if order status is Ordered (not yet received/partially complete)
             if (order.OrderStatus != OrderStatus.Ordered)
             {
-                TempData["Error"] = "Cannot edit an order that has already been processed.";
+                SetError("Cannot edit an order that has already been processed.");
                 return RedirectToAction(nameof(Orders));
             }
 
@@ -857,7 +813,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 }).ToList()
             };
 
-            // Populate dropdown for adding new items (only active consumables from the same supplier)
             ViewBag.AvailableConsumables = new SelectList(
                 await _context.Consumables
                     .Where(c => c.SupplierId == order.SupplierId && c.Status == Status.Active)
@@ -867,12 +822,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-        // POST: Edit Order
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditOrder(EditOrderViewModel model)
         {
-            // Validate that at least one item remains after removal
             if (model.Items == null || !model.Items.Any(i => !i.Remove))
             {
                 ModelState.AddModelError("", "Order must contain at least one item.");
@@ -880,7 +833,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (!ModelState.IsValid)
             {
-                // Repopulate dropdown
                 var orderForSupplier = await _context.Orders.FindAsync(model.OrderId);
                 ViewBag.AvailableConsumables = new SelectList(
                     await _context.Consumables
@@ -897,11 +849,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             if (order == null) return NotFound();
             if (order.OrderStatus != OrderStatus.Ordered)
             {
-                TempData["Error"] = "Cannot edit an order that has already been processed.";
+                SetError("Cannot edit an order that has already been processed.");
                 return RedirectToAction(nameof(Orders));
             }
 
-            // Update existing items or remove them
             foreach (var itemModel in model.Items)
             {
                 var existingItem = order.OrderItems.FirstOrDefault(oi => oi.Id == itemModel.OrderItemId);
@@ -913,7 +864,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 }
                 else
                 {
-                    // Only allow quantity change if status is still Ordered
                     if (existingItem.OrderItemStatus == OrderItemStatus.Ordered)
                     {
                         existingItem.QuantityOrdered = itemModel.QuantityOrdered;
@@ -921,7 +871,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 }
             }
 
-            // Add new item if specified
             if (model.NewConsumableId.HasValue && model.NewQuantity.HasValue && model.NewQuantity.Value > 0)
             {
                 var consumable = await _context.Consumables.FindAsync(model.NewConsumableId.Value);
@@ -941,24 +890,14 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            // If order items changed, we might need to re-evaluate order status (though it should remain Ordered)
-            // No automatic status change here.
-
-            TempData["Message"] = "Order updated successfully.";
+            SetSuccess("Order updated successfully.");
             return RedirectToAction(nameof(Orders));
         }
 
-
         #endregion
-
-
-
-
-
 
         #region Doctor Management (Soft Delete + Restore + Edit)
 
-        // List only active doctors
         public async Task<IActionResult> Doctors()
         {
             var doctors = await _context.Employees
@@ -967,7 +906,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(doctors);
         }
 
-        // List inactive doctors (for restore)
         public async Task<IActionResult> InactiveDoctors()
         {
             var doctors = await _context.Employees
@@ -985,14 +923,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            // Check unique HPCSA number
             if (await _context.Employees.AnyAsync(e => e.HPCSANumber == model.HPCSANumber))
             {
                 ModelState.AddModelError(nameof(model.HPCSANumber), "HPCSA number already registered.");
                 return View(model);
             }
 
-            // Check unique email
             if (await _context.Employees.AnyAsync(e => e.Email == model.Email))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address already registered.");
@@ -1027,7 +963,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Doctors));
         }
 
-        // GET: Edit Doctor
         [HttpGet]
         public async Task<IActionResult> EditDoctor(int id)
         {
@@ -1047,7 +982,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-        // POST: Edit Doctor
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditDoctor(DoctorUserViewModel model)
@@ -1058,14 +992,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .FirstOrDefaultAsync(e => e.Id == model.Id && e.Role == UserRole.Doctor);
             if (doctor == null) return NotFound();
 
-            // Check unique HPCSA number (excluding current)
             if (await _context.Employees.AnyAsync(e => e.HPCSANumber == model.HPCSANumber && e.Id != model.Id))
             {
                 ModelState.AddModelError(nameof(model.HPCSANumber), "HPCSA number already registered.");
                 return View(model);
             }
 
-            // Check unique email (excluding current)
             if (await _context.Employees.AnyAsync(e => e.Email == model.Email && e.Id != model.Id))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address already registered.");
@@ -1076,14 +1008,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             doctor.LastName = model.LastName;
             doctor.HPCSANumber = model.HPCSANumber;
             doctor.Email = model.Email;
-            doctor.Username = model.Email; // Keep in sync
+            doctor.Username = model.Email;
             doctor.ContactNumber = model.ContactNumber;
-            doctor.IsActive = Status.Active; // Ensure edited doctor remains active (optional, depends on requirements)
+            doctor.IsActive = Status.Active;
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Doctors));
         }
 
-        // Soft delete doctor (set IsActive = Inactive)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteDoctor(int id)
@@ -1098,7 +1029,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Doctors));
         }
 
-        // Restore doctor (set IsActive = Active)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreDoctor(int id)
@@ -1117,7 +1047,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #region Lab Technician Management (Soft Delete + Restore + Edit)
 
-        // List only active technicians
         public async Task<IActionResult> Technicians()
         {
             var techs = await _context.Employees
@@ -1127,7 +1056,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(techs);
         }
 
-        // List inactive technicians (for restore)
         public async Task<IActionResult> InactiveTechnicians()
         {
             var techs = await _context.Employees
@@ -1156,7 +1084,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Check unique SA ID
             if (await _context.Employees.AnyAsync(e => e.SAIDNumber == model.SAIDNumber))
             {
                 ModelState.AddModelError(nameof(model.SAIDNumber), "ID number already registered.");
@@ -1164,7 +1091,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Check unique email
             if (await _context.Employees.AnyAsync(e => e.Email == model.Email))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address already registered.");
@@ -1172,7 +1098,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Ensure at least one test type is assigned
             if (model.SelectedTestTypeIds == null || model.SelectedTestTypeIds.Count == 0)
             {
                 ModelState.AddModelError("", "At least one test type must be assigned.");
@@ -1214,7 +1139,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Technicians));
         }
 
-        // GET: Edit Technician
         [HttpGet]
         public async Task<IActionResult> EditTechnician(int id)
         {
@@ -1238,7 +1162,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-        // POST: Edit Technician
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditTechnician(LabTechnicianViewModel model)
@@ -1254,7 +1177,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .FirstOrDefaultAsync(e => e.Id == model.Id && e.Role == UserRole.LabTechnician);
             if (tech == null) return NotFound();
 
-            // Check unique SA ID (excluding current)
             if (await _context.Employees.AnyAsync(e => e.SAIDNumber == model.SAIDNumber && e.Id != model.Id))
             {
                 ModelState.AddModelError(nameof(model.SAIDNumber), "ID number already registered.");
@@ -1262,7 +1184,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Check unique email (excluding current)
             if (await _context.Employees.AnyAsync(e => e.Email == model.Email && e.Id != model.Id))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address already registered.");
@@ -1270,7 +1191,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Ensure at least one test type is assigned
             if (model.SelectedTestTypeIds == null || model.SelectedTestTypeIds.Count == 0)
             {
                 ModelState.AddModelError("", "At least one test type must be assigned.");
@@ -1287,7 +1207,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             tech.ContactNumber = model.ContactNumber;
             tech.IsActive = model.IsActive;
 
-            // Update test type assignments
             _context.TechnicianTestTypes.RemoveRange(tech.TechnicianTestTypes);
             foreach (var ttId in model.SelectedTestTypeIds)
             {
@@ -1298,7 +1217,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Technicians));
         }
 
-        // Soft delete technician (set IsActive = Inactive)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteTechnician(int id)
@@ -1313,7 +1231,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Technicians));
         }
 
-        // Restore technician (set IsActive = Active)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreTechnician(int id)
@@ -1341,18 +1258,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            // Query completed tests within date range (assuming TestRequest and TestResult models exist)
-            // For demonstration, we'll return a PDF stub
             var pdfBytes = await _pdfService.GenerateTestPerformanceReport(model.StartDate, model.EndDate);
             return File(pdfBytes, "application/pdf", $"TestPerformance_{model.StartDate:yyyyMMdd}-{model.EndDate:yyyyMMdd}.pdf");
         }
 
         #endregion
-
-
-
-
-
 
         #region Helpers
 

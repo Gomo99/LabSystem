@@ -1,0 +1,464 @@
+﻿@{
+    Layout = null;
+    var firstName = User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? "Patient";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] – NMB-HLabSys Patient Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --navy: #0A1628;
+            --navy-mid: #0F2040;
+            --teal: #0ECECE;
+            --teal-dark: #09a8a8;
+            --teal-glow: rgba(14,206,206,.18);
+            --white: #FFFFFF;
+            --off-white: #e8f0f7;
+            --muted: #7a99bb;
+            --danger: #f25c5c;
+            --success: #2ecc71;
+            --card-bg: rgba(15,32,64,.72);
+            --border: rgba(14,206,206,.22);
+        }
+
+        html, body {
+            min-height: 100%;
+            font-family: 'Outfit', sans-serif;
+            background: var(--navy);
+            color: var(--white);
+        }
+
+        .bg-scene {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: linear-gradient(135deg, #060e1c, #0A1628 55%, #0d2040);
+        }
+
+            .bg-scene::before {
+                content: '';
+                position: absolute;
+                width: 700px;
+                height: 700px;
+                top: -200px;
+                right: -200px;
+                background: radial-gradient(circle, rgba(14,206,206,.09) 0%, transparent 65%);
+                animation: pulse 10s ease-in-out infinite alternate;
+            }
+
+        @@keyframes pulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.2);
+            }
+        }
+
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image: linear-gradient(rgba(14,206,206,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(14,206,206,.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        .app-wrapper {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(10,22,40,.85);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            padding: 32px 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            padding: 0 24px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--navy);
+            font-size: 20px;
+        }
+
+        .brand-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-sub {
+            font-size: .7rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 0 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            transition: all .2s;
+        }
+
+            .nav-item i {
+                width: 22px;
+                font-size: 1.1rem;
+            }
+
+            .nav-item:hover {
+                background: rgba(14,206,206,.08);
+                color: var(--white);
+            }
+
+            .nav-item.active {
+                background: var(--teal-glow);
+                color: var(--teal);
+                border-left: 3px solid var(--teal);
+            }
+
+        .sidebar-footer {
+            padding: 24px 16px 0;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 40px;
+            background: rgba(14,206,206,.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-detail .name {
+            font-weight: 500;
+        }
+
+        .user-detail .role {
+            font-size: .75rem;
+            color: var(--muted);
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            padding: 32px 40px;
+            overflow-y: auto;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+
+            .page-header h1 {
+                font-size: 1.8rem;
+                font-weight: 600;
+                letter-spacing: -0.02em;
+            }
+
+            .page-header .actions {
+                display: flex;
+                gap: 12px;
+            }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 28px 30px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 30px 60px rgba(0,0,0,.3);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 14px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: rgba(46,204,113,.1);
+            border: 1px solid rgba(46,204,113,.3);
+            color: var(--success);
+        }
+
+        .alert-danger {
+            background: rgba(242,92,92,.08);
+            border: 1px solid rgba(242,92,92,.3);
+            color: var(--danger);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+            color: var(--navy);
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(14,206,206,.3);
+        }
+
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(14,206,206,.5);
+            }
+
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid rgba(255,255,255,.15);
+            color: var(--off-white);
+        }
+
+            .btn-outline:hover {
+                border-color: var(--teal);
+                color: var(--teal);
+            }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: .85rem;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: .77rem;
+            font-weight: 600;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,.05);
+            border: 1.5px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            color: var(--white);
+            font-family: 'Outfit', sans-serif;
+            outline: none;
+            transition: border .2s, box-shadow .2s;
+        }
+
+            .form-control:focus, .form-select:focus {
+                border-color: var(--teal);
+                background: rgba(14,206,206,.05);
+                box-shadow: 0 0 0 4px rgba(14,206,206,.12);
+            }
+
+        .text-danger {
+            font-size: .78rem;
+            color: var(--danger);
+            margin-top: 5px;
+        }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .table th {
+                text-align: left;
+                padding: 14px 8px;
+                font-size: .75rem;
+                text-transform: uppercase;
+                letter-spacing: .05em;
+                color: var(--muted);
+                border-bottom: 1px solid rgba(255,255,255,.08);
+            }
+
+            .table td {
+                padding: 16px 8px;
+                border-bottom: 1px solid rgba(255,255,255,.04);
+            }
+
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: .7rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .badge-success {
+            background: rgba(46,204,113,.2);
+            color: #2ecc71;
+        }
+
+        .badge-warning {
+            background: rgba(245,166,35,.2);
+            color: #f5a623;
+        }
+
+        .badge-danger {
+            background: rgba(242,92,92,.2);
+            color: #f25c5c;
+        }
+
+        /* Utilities */
+        .mt-4 {
+            margin-top: 24px;
+        }
+
+        .mb-4 {
+            margin-bottom: 24px;
+        }
+
+        .flex {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+    </style>
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    <div class="bg-scene"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="app-wrapper">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><i class="fas fa-flask"></i></div>
+                <div>
+                    <div class="brand-text">NMB-HLabSys</div>
+                    <div class="brand-sub">Patient Portal</div>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <a asp-action="DashBoard" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "DashBoard" ? "active" : "")">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a asp-action="Profile" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Profile" ? "active" : "")">
+                    <i class="fas fa-user-circle"></i> My Profile
+                </a>
+                <a asp-action="MedicalHistory" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "MedicalHistory" ? "active" : "")">
+                    <i class="fas fa-notes-medical"></i> Medical History
+                </a>
+                <a asp-action="TestRequests" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "TestRequests" ? "active" : "")">
+                    <i class="fas fa-flask"></i> Test Requests
+                </a>
+                <a asp-action="TrackResults" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "TrackResults" ? "active" : "")">
+                    <i class="fas fa-chart-line"></i> Track Results
+                </a>
+                <a asp-action="DoctorAccess" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "DoctorAccess" ? "active" : "")">
+                    <i class="fas fa-user-md"></i> Doctor Access
+                </a>
+                <a asp-action="ResultsReport" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "ResultsReport" ? "active" : "")">
+                    <i class="fas fa-file-pdf"></i> Reports
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-detail">
+                        <div class="name">@firstName</div>
+                        <div class="role">Patient</div>
+                    </div>
+                </div>
+                <a asp-controller="Account" asp-action="ChangePassword" class="nav-item"><i class="fas fa-key"></i> Change Password</a>
+                <a asp-controller="Account" asp-action="Logout" class="nav-item"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <partial name="_Alerts" />
+
+
+            @RenderBody()
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

@@ -18,11 +18,28 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
 
+        // Standardized TempData keys
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
         public LabTechnicianController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+        }
+
+        // ======================================================================
+        //  HELPER METHODS (CLEAN + REUSABLE)
+        // ======================================================================
+        private void SetSuccess(string message)
+        {
+            TempData[SuccessMessageKey] = message;
+        }
+
+        private void SetError(string message)
+        {
+            TempData[ErrorMessageKey] = message;
         }
 
         public async Task<IActionResult> DashBoard(string? filterUrgency, int? filterCategoryId, string? filterDueTime, string? filterRequestNumber)
@@ -69,7 +86,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     var endOfWeek = startOfWeek.AddDays(7);
                     query = query.Where(trt => trt.StartDateTime.HasValue && trt.StartDateTime.Value.Date >= startOfWeek && trt.StartDateTime.Value.Date < endOfWeek);
                 }
-                // "Overdue" and "Nearing" are handled in specific queries below
 
                 return query;
             }
@@ -178,9 +194,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-
-
-
         #region Receive Samples
 
         // List test requests with status 'Submitted' (samples not yet received)
@@ -269,7 +282,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Samples received successfully.";
+            SetSuccess("Samples received successfully.");
             return RedirectToAction(nameof(PendingTestRequests));
         }
 
@@ -280,7 +293,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             if (string.IsNullOrWhiteSpace(barcode))
             {
-                TempData["Error"] = "Barcode is required.";
+                SetError("Barcode is required.");
                 return RedirectToAction(nameof(PendingTestRequests));
             }
 
@@ -290,13 +303,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (sample == null)
             {
-                TempData["Error"] = "Sample not found.";
+                SetError("Sample not found.");
                 return RedirectToAction(nameof(PendingTestRequests));
             }
 
             if (sample.ReceivedDate.HasValue)
             {
-                TempData["Error"] = "Sample already received.";
+                SetError("Sample already received.");
                 return RedirectToAction(nameof(PendingTestRequests));
             }
 
@@ -312,18 +325,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Sample {barcode} received successfully.";
+            SetSuccess($"Sample {barcode} received successfully.");
             return RedirectToAction(nameof(PendingTestRequests));
         }
 
-
-
-
-
         #endregion
-
-
-
 
         #region Soft Delete & Restore Test Requests
 
@@ -340,14 +346,14 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             // Optional: restrict deletion to certain statuses
             if (request.RequestStatus != RequestStatus.Submitted && request.RequestStatus != RequestStatus.SamplesReceived)
             {
-                TempData["Error"] = "Cannot delete a request that is already in progress or completed.";
+                SetError("Cannot delete a request that is already in progress or completed.");
                 return RedirectToAction(nameof(PendingTestRequests));
             }
 
             request.RecordStatus = Status.Inactive;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Test request deleted (soft delete).";
+            SetSuccess("Test request deleted (soft delete).");
             return RedirectToAction(nameof(PendingTestRequests));
         }
 
@@ -387,12 +393,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             request.RecordStatus = Status.Active;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Test request restored.";
+            SetSuccess("Test request restored.");
             return RedirectToAction(nameof(InactiveTestRequests));
         }
 
         #endregion
-
 
         #region Select and Process Test Types
 
@@ -498,8 +503,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-
-
         // Start a test (assign to current technician, set start time, update statuses)
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -520,27 +523,27 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (!isQualified)
             {
-                TempData["Error"] = "You are not qualified to perform this test.";
+                SetError("You are not qualified to perform this test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Can only start if status is Submitted
             if (testRequestTestType.RequestStatus != RequestStatus.Submitted)
             {
-                TempData["Error"] = "This test cannot be started.";
+                SetError("This test cannot be started.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
-            // ✅ Deduct consumables from stock
+            // Deduct consumables from stock
             foreach (var testConsumable in testRequestTestType.TestType.TestTypeConsumables)
             {
                 var consumable = testConsumable.Consumable;
                 if (consumable != null && consumable.Status == Status.Active)
                 {
-                    consumable.QuantityOnHand -= 1; // Deduct one unit per consumable used
+                    consumable.QuantityOnHand -= 1;
                     if (consumable.QuantityOnHand < 0)
                     {
-                        TempData["Error"] = $"Insufficient stock for {consumable.ConsumableName}. Cannot start test.";
+                        SetError($"Insufficient stock for {consumable.ConsumableName}. Cannot start test.");
                         return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
                     }
                 }
@@ -558,9 +561,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Started test: {testRequestTestType.TestType?.TestName}";
+            SetSuccess($"Started test: {testRequestTestType.TestType?.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
         }
+
         // Complete a test (set completion time, update statuses)
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -577,7 +581,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             // Can only complete if assigned to current technician and status is InProgress
             if (testRequestTestType.TechnicianId != technicianId || testRequestTestType.RequestStatus != RequestStatus.InProgress)
             {
-                TempData["Error"] = "You cannot complete this test.";
+                SetError("You cannot complete this test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
@@ -591,18 +595,17 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             if (allCompleted)
             {
                 request.RequestStatus = RequestStatus.Completed;
-                // Notify doctor? (optional)
             }
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Completed test: {testRequestTestType.TestType?.TestName}";
+            SetSuccess($"Completed test: {testRequestTestType.TestType?.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
         }
 
         #endregion
 
-
+        #region Verification and Review
 
         // Verify a completed test (by a different technician)
         [HttpPost]
@@ -625,21 +628,21 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (!isQualified)
             {
-                TempData["Error"] = "You are not qualified to verify this test.";
+                SetError("You are not qualified to verify this test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Cannot verify own test
             if (testRequestTestType.TechnicianId == technicianId)
             {
-                TempData["Error"] = "You cannot verify your own test.";
+                SetError("You cannot verify your own test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Can only verify if status is Completed
             if (testRequestTestType.RequestStatus != RequestStatus.Completed)
             {
-                TempData["Error"] = "Only completed tests can be verified.";
+                SetError("Only completed tests can be verified.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
@@ -666,11 +669,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (allVerified)
             {
-                // Notify doctor via email with PDF attachment
                 await NotifyDoctorAllTestsVerified(request);
             }
 
-            TempData["Message"] = $"Test verified: {testRequestTestType.TestType?.TestName}";
+            SetSuccess($"Test verified: {testRequestTestType.TestType?.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
         }
 
@@ -693,32 +695,32 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (!isQualified)
             {
-                TempData["Error"] = "You are not qualified to review this test.";
+                SetError("You are not qualified to review this test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Cannot review own test
             if (testRequestTestType.TechnicianId == technicianId)
             {
-                TempData["Error"] = "You cannot return your own test for review.";
+                SetError("You cannot return your own test for review.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Can only return if status is Completed
             if (testRequestTestType.RequestStatus != RequestStatus.Completed)
             {
-                TempData["Error"] = "Only completed tests can be returned for review.";
+                SetError("Only completed tests can be returned for review.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             if (string.IsNullOrWhiteSpace(reviewNotes))
             {
-                TempData["Error"] = "Review notes are required.";
+                SetError("Review notes are required.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             testRequestTestType.RequestStatus = RequestStatus.ToBeReviewed;
-            testRequestTestType.VerificationNotes = reviewNotes; // Store review notes
+            testRequestTestType.VerificationNotes = reviewNotes;
             testRequestTestType.VerifiedById = technicianId;
             testRequestTestType.VerifiedDateTime = DateTime.Now;
 
@@ -734,7 +736,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Test returned for review: {testRequestTestType.TestType?.TestName}";
+            SetSuccess($"Test returned for review: {testRequestTestType.TestType?.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
         }
 
@@ -755,27 +757,25 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             // Only the original technician can resubmit
             if (testRequestTestType.TechnicianId != technicianId)
             {
-                TempData["Error"] = "Only the original technician can resubmit this test.";
+                SetError("Only the original technician can resubmit this test.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Can only resubmit if status is ToBeReviewed
             if (testRequestTestType.RequestStatus != RequestStatus.ToBeReviewed)
             {
-                TempData["Error"] = "Only tests awaiting review can be resubmitted.";
+                SetError("Only tests awaiting review can be resubmitted.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
             // Update the result value if provided
             if (!string.IsNullOrWhiteSpace(adjustedResultValue))
             {
-                // Find existing TestResult and update
                 var testResult = await _context.TestResults
                     .FirstOrDefaultAsync(tr => tr.TestRequestId == testRequestId && tr.TestTypeId == testTypeId);
                 if (testResult != null)
                 {
                     testResult.ResultValue = adjustedResultValue;
-                    // Re-evaluate abnormality
                     if (testRequestTestType.TestType.NormalRangeMin.HasValue && testRequestTestType.TestType.NormalRangeMax.HasValue)
                     {
                         if (decimal.TryParse(adjustedResultValue, out decimal resultDecimal))
@@ -791,7 +791,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             testRequestTestType.RequestStatus = RequestStatus.Completed;
             testRequestTestType.CompletionDateTime = DateTime.Now;
             testRequestTestType.ReviewNotes = resubmitNotes;
-            // Clear previous verification info so a different technician can verify
             testRequestTestType.VerifiedById = null;
             testRequestTestType.VerifiedDateTime = null;
             testRequestTestType.VerificationNotes = null;
@@ -808,10 +807,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Test resubmitted for verification: {testRequestTestType.TestType?.TestName}";
+            SetSuccess($"Test resubmitted for verification: {testRequestTestType.TestType?.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
         }
 
+        #endregion
+
+        #region Capture Result
 
         [HttpGet]
         public async Task<IActionResult> CaptureResult(int testRequestId, int testTypeId)
@@ -836,7 +838,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             // Only the assigned technician can capture results when test is InProgress
             if (testRequestTestType.TechnicianId != technicianId || testRequestTestType.RequestStatus != RequestStatus.InProgress)
             {
-                TempData["Error"] = "You cannot capture results for this test at this time.";
+                SetError("You cannot capture results for this test at this time.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
 
@@ -861,10 +863,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-
-
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CaptureResult(CaptureResultViewModel model)
@@ -880,7 +878,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (testRequestTestType.TechnicianId != technicianId || testRequestTestType.RequestStatus != RequestStatus.InProgress)
             {
-                TempData["Error"] = "You cannot capture results for this test at this time.";
+                SetError("You cannot capture results for this test at this time.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = model.TestRequestId });
             }
 
@@ -925,13 +923,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = $"Results captured for test: {testRequestTestType.TestType.TestName}";
+            SetSuccess($"Results captured for test: {testRequestTestType.TestType.TestName}");
             return RedirectToAction(nameof(ProcessTestTypes), new { requestId = model.TestRequestId });
         }
 
-
-
-
+        #endregion
 
         #region Reports
 
@@ -955,7 +951,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (pdfBytes == null || pdfBytes.Length == 0)
             {
-                TempData["Error"] = "PDF generation is not yet implemented or no data found.";
+                SetError("PDF generation is not yet implemented or no data found.");
                 return RedirectToAction(nameof(CompletedTestsReport));
             }
 
@@ -965,14 +961,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
+        #region Private Helpers
 
         private async Task NotifyDoctorAllTestsVerified(TestRequest request)
         {
             var doctor = request.Doctor;
             if (doctor == null || string.IsNullOrEmpty(doctor.Email)) return;
 
-            // Generate PDF of all results
             byte[] pdfBytes = await _pdfService.GenerateTestResultsPdf(request.Id);
 
             string subject = $"All Tests Verified – Request #{request.Id}";
@@ -981,18 +976,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                           $"have been verified and are ready for your review.\n\n" +
                           $"Please log in to the system to view and release the results.";
 
-            // In production, attach the PDF using MailKit. Here we'll use a simplified email.
             await _emailService.SendEmailAsync(doctor.Email, subject, body);
-            // To attach PDF, you would need to implement attachment support in IEmailService.
         }
-
-
-
-
-      
-
-
-        #region Helpers
 
         private int GetCurrentTechnicianId()
         {

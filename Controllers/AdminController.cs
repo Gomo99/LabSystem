@@ -13,11 +13,31 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
     {
         private readonly LabDbContext _context;
 
+        // Standardized TempData keys
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
         public AdminController(LabDbContext context)
         {
             _context = context;
         }
 
+        // ======================================================================
+        //  HELPER METHODS (CLEAN + REUSABLE)
+        // ======================================================================
+        private void SetSuccess(string message)
+        {
+            TempData[SuccessMessageKey] = message;
+        }
+
+        private void SetError(string message)
+        {
+            TempData[ErrorMessageKey] = message;
+        }
+
+        // ======================================================================
+        //  DASHBOARD
+        // ======================================================================
         public IActionResult DashBoard() => View();
 
         #region Medical Conditions
@@ -64,7 +84,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context.MedicalConditions.Add(condition);
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Medical condition created.";
+            SetSuccess("Medical condition created successfully.");
             return RedirectToAction("MedicalConditions");
         }
 
@@ -96,7 +116,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             condition.Category = model.Category;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Medical condition updated.";
+            SetSuccess("Medical condition updated successfully.");
             return RedirectToAction("MedicalConditions");
         }
 
@@ -109,6 +129,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 condition.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Medical condition deactivated.");
+            }
+            else
+            {
+                SetError("Medical condition not found.");
             }
             return RedirectToAction("MedicalConditions");
         }
@@ -122,6 +147,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 condition.Status = Status.Active;
                 await _context.SaveChangesAsync();
+                SetSuccess("Medical condition restored.");
+            }
+            else
+            {
+                SetError("Medical condition not found.");
             }
             return RedirectToAction("MedicalConditions", new AdminFilterViewModel { ShowInactive = true });
         }
@@ -172,7 +202,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context.Allergies.Add(allergy);
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Allergy created.";
+            SetSuccess("Allergy created successfully.");
             return RedirectToAction("Allergies");
         }
 
@@ -204,7 +234,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             allergy.Category = model.Category;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Allergy updated.";
+            SetSuccess("Allergy updated successfully.");
             return RedirectToAction("Allergies");
         }
 
@@ -217,6 +247,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 allergy.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Allergy deactivated.");
+            }
+            else
+            {
+                SetError("Allergy not found.");
             }
             return RedirectToAction("Allergies");
         }
@@ -230,6 +265,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 allergy.Status = Status.Active;
                 await _context.SaveChangesAsync();
+                SetSuccess("Allergy restored.");
+            }
+            else
+            {
+                SetError("Allergy not found.");
             }
             return RedirectToAction("Allergies", new AdminFilterViewModel { ShowInactive = true });
         }
@@ -280,7 +320,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context.Medications.Add(medication);
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Medication created.";
+            SetSuccess("Medication created successfully.");
             return RedirectToAction("Medications");
         }
 
@@ -312,7 +352,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             medication.Category = model.Category;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Medication updated.";
+            SetSuccess("Medication updated successfully.");
             return RedirectToAction("Medications");
         }
 
@@ -325,6 +365,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 medication.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Medication deactivated.");
+            }
+            else
+            {
+                SetError("Medication not found.");
             }
             return RedirectToAction("Medications");
         }
@@ -338,6 +383,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 medication.Status = Status.Active;
                 await _context.SaveChangesAsync();
+                SetSuccess("Medication restored.");
+            }
+            else
+            {
+                SetError("Medication not found.");
             }
             return RedirectToAction("Medications", new AdminFilterViewModel { ShowInactive = true });
         }

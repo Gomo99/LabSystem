@@ -1,0 +1,68 @@
+﻿@using LaboratoryTestRequestManagementSystem.AppStatus
+@using LaboratoryTestRequestManagementSystem.ViewModel
+@model List<PatientTestRequestListViewModel>
+@{
+    ViewData["Title"] = "Test Requests";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+}
+<div class="page-header">
+    <h1>My Test Requests</h1>
+</div>
+
+<div class="card">
+    @if (Model == null || !Model.Any())
+    {
+        <p style="color: var(--muted);">No test requests found.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Doctor</th>
+                        <th>Date</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Tests</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in Model)
+                    {
+                        <tr>
+                            <td>#@req.Id</td>
+                            <td>@req.DoctorName</td>
+                            <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @{
+                                    string urgencyClass = req.Urgency switch
+                                    {
+                                        Urgency.Routine => "badge-success",
+                                        Urgency.Urgent => "badge-warning",
+                                        Urgency.Stat => "badge-danger",
+                                        _ => ""
+                                    };
+                                }
+                                <span class="badge @urgencyClass">@req.Urgency</span>
+                            </td>
+                            <td>
+                                <span class="badge @(req.Status == RequestStatus.ReleasedByDoctor ? "badge-success" : "badge-warning")">
+                                    @req.Status
+                                </span>
+                            </td>
+                            <td>@req.TestCount</td>
+                            <td>
+                                <a asp-action="RequestDetails" asp-route-id="@req.Id" class="btn btn-outline btn-sm">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

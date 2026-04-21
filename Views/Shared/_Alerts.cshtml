@@ -1,0 +1,30 @@
+﻿@using System.Text.Json
+
+@{
+    var success = TempData["SuccessMessage"];
+    var error = TempData["ErrorMessage"];
+}
+
+@if (success != null)
+{
+    <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: @Html.Raw(JsonSerializer.Serialize(success)),
+            confirmButtonColor: '#3085d6'
+        });
+    </script>
+}
+
+@if (error != null)
+{
+    <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: @Html.Raw(JsonSerializer.Serialize(error)),
+            confirmButtonColor: '#d33'
+        });
+    </script>
+}

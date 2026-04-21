@@ -1,0 +1,54 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model GrantAccessViewModel
+@{
+    ViewData["Title"] = "Grant Access";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+    var doctors = ViewBag.Doctors as SelectList;
+    var testRequests = ViewBag.TestRequests as List<dynamic>;
+}
+<div class="page-header">
+    <h1>Grant Doctor Access</h1>
+</div>
+
+<div class="card">
+    <form asp-action="GrantAccess" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-4"></div>
+
+        <div class="form-group">
+            <label asp-for="DoctorId" class="form-label">Select Doctor</label>
+            <select asp-for="DoctorId" class="form-select" asp-items="doctors">
+                <option value="">-- Choose a doctor --</option>
+            </select>
+            <span asp-validation-for="DoctorId" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Share Specific Test Requests (optional)</label>
+            <div style="max-height: 200px; overflow-y: auto; border: 1.5px solid rgba(255,255,255,.1); border-radius: 12px; padding: 12px;">
+                @if (testRequests != null)
+                {
+                    foreach (var req in testRequests)
+                    {
+                        <div style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; color: var(--off-white);">
+                                <input type="checkbox" name="SelectedTestRequestIds" value="@req.Id" />
+                                #@req.Id - @req.Label
+                            </label>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p style="color: var(--muted);">No test requests available.</p>
+                }
+            </div>
+            <small style="color: var(--muted);">If none selected, doctor will have access to all your test requests.</small>
+        </div>
+
+        <div class="flex justify-between mt-4">
+            <a asp-action="DoctorAccess" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Grant Access</button>
+        </div>
+    </form>
+</div>

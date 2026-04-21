@@ -1,0 +1,33 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+}
+<div class="page-header">
+    <h1>Welcome back!</h1>
+</div>
+
+<div class="card">
+    <div style="display: flex; gap: 32px; align-items: center;">
+        <div style="font-size: 3rem; opacity: .3;"><i class="fas fa-heartbeat"></i></div>
+        <div>
+            <h2 style="margin-bottom: 8px;">Your health at a glance</h2>
+            <p style="color: var(--muted);">Access your test results, update medical history, and manage doctor access.</p>
+            <div style="margin-top: 24px; display: flex; gap: 16px;">
+                <a asp-action="TestRequests" class="btn btn-primary"><i class="fas fa-flask"></i> View Test Requests</a>
+                <a asp-action="Profile" class="btn btn-outline"><i class="fas fa-user-edit"></i> Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 30px;">
+    <div class="card">
+        <h3 style="margin-bottom: 16px;"><i class="fas fa-clock" style="margin-right: 8px;"></i>Recent Activity</h3>
+        <p style="color: var(--muted);">No recent test requests.</p>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom: 16px;"><i class="fas fa-shield-alt" style="margin-right: 8px;"></i>Privacy Reminder</h3>
+        <p style="color: var(--muted);">You control which doctors can see your results.</p>
+        <a asp-action="DoctorAccess" class="btn btn-outline btn-sm" style="margin-top: 16px;">Manage Access</a>
+    </div>
+</div>

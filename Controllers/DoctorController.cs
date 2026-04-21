@@ -21,11 +21,28 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
 
+        // Standardized TempData keys
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
         public DoctorController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+        }
+
+        // ======================================================================
+        //  HELPER METHODS (CLEAN + REUSABLE)
+        // ======================================================================
+        private void SetSuccess(string message)
+        {
+            TempData[SuccessMessageKey] = message;
+        }
+
+        private void SetError(string message)
+        {
+            TempData[ErrorMessageKey] = message;
         }
 
         public IActionResult DashBoard() => View();
@@ -146,7 +163,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 $"Temporary Password: {tempPassword}\n\n" +
                 $"Please log in and change your password immediately.");
 
-            TempData["Message"] = $"Patient {patient.FirstName} {patient.LastName} registered successfully.";
+            SetSuccess($"Patient {patient.FirstName} {patient.LastName} registered successfully.");
             return RedirectToAction(nameof(Patients));
         }
 
@@ -220,18 +237,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             patient.Email = model.Email;
             patient.HomeAddress = model.HomeAddress;
 
-            // Update medical conditions
-            UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
-            UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
-            UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
+            // Update medical history
+            await UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
+            await UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
+            await UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Patient updated successfully.";
+            SetSuccess("Patient updated successfully.");
             return RedirectToAction(nameof(Details), new { id = patient.Id });
         }
 
-        private async void UpdatePatientMedicalHistory(Patient patient, string input, string type)
+        private async Task UpdatePatientMedicalHistory(Patient patient, string input, string type)
         {
             // Clear existing
             if (type == "condition")
@@ -299,6 +316,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 patient.IsActive = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Patient deactivated.");
+            }
+            else
+            {
+                SetError("Patient not found.");
             }
             return RedirectToAction(nameof(Patients));
         }
@@ -330,16 +352,19 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             {
                 patient.IsActive = Status.Active;
                 await _context.SaveChangesAsync();
+                SetSuccess("Patient restored.");
+            }
+            else
+            {
+                SetError("Patient not found.");
             }
             return RedirectToAction(nameof(InactivePatients));
         }
 
-
-
+        #endregion
 
         #region Test Request Management
 
-        // List active test requests for the current doctor
         public async Task<IActionResult> TestRequests()
         {
             int doctorId = GetCurrentDoctorId();
@@ -362,8 +387,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(requests);
         }
 
-        // View details of a specific test request
-        // View details of a specific test request
         public async Task<IActionResult> RequestDetails(int id)
         {
             int doctorId = GetCurrentDoctorId();
@@ -376,7 +399,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request == null) return NotFound();
 
-            // Load results for this request
             var results = await _context.TestResults
                 .Where(r => r.TestRequestId == id)
                 .ToListAsync();
@@ -417,7 +439,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
-        // GET: Edit Test Request
         [HttpGet]
         public async Task<IActionResult> EditRequest(int id)
         {
@@ -429,11 +450,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request == null) return NotFound();
 
-            // Only allow editing if status is Submitted or SamplesReceived (not yet in progress)
             bool canEdit = request.RequestStatus == RequestStatus.Submitted || request.RequestStatus == RequestStatus.SamplesReceived;
             if (!canEdit)
             {
-                TempData["Error"] = "Cannot edit a request that is already in progress or completed.";
+                SetError("Cannot edit a request that is already in progress or completed.");
                 return RedirectToAction(nameof(RequestDetails), new { id });
             }
 
@@ -449,14 +469,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     Barcode = s.Barcode,
                     SampleTypeId = s.SampleTypeId
                 }).ToList(),
-                CanEditSamples = request.RequestStatus == RequestStatus.Submitted // Only if not yet received
+                CanEditSamples = request.RequestStatus == RequestStatus.Submitted
             };
 
             await PopulateTestRequestDropdowns();
             return View(model);
         }
 
-        // POST: Edit Test Request
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditRequest(EditTestRequestViewModel model)
@@ -472,17 +491,15 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             bool canEdit = request.RequestStatus == RequestStatus.Submitted || request.RequestStatus == RequestStatus.SamplesReceived;
             if (!canEdit)
             {
-                TempData["Error"] = "Cannot edit a request that is already in progress or completed.";
+                SetError("Cannot edit a request that is already in progress or completed.");
                 return RedirectToAction(nameof(RequestDetails), new { id = model.Id });
             }
 
-            // Repopulate dropdowns on error
             async Task Repopulate()
             {
                 await PopulateTestRequestDropdowns();
             }
 
-            // Validation
             if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
             {
                 ModelState.AddModelError("SelectedTestTypeIds", "At least one test type must be selected.");
@@ -497,7 +514,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Validate samples (barcodes unique in request and not already in system excluding current)
             var barcodes = model.Samples.Select(s => s.Barcode).ToList();
             if (barcodes.Distinct().Count() != barcodes.Count)
             {
@@ -523,12 +539,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Update basic info
             request.PatientId = model.PatientId;
             request.Urgency = model.Urgency;
             request.ClinicalNotes = model.ClinicalNotes;
 
-            // Update test types (remove and re-add)
             _context.TestRequestTestTypes.RemoveRange(request.TestRequestTestTypes);
             foreach (var ttId in model.SelectedTestTypeIds)
             {
@@ -539,7 +553,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 });
             }
 
-            // Update samples only if allowed (status == Submitted)
             if (request.RequestStatus == RequestStatus.Submitted && model.CanEditSamples)
             {
                 _context.Samples.RemoveRange(request.Samples);
@@ -556,11 +569,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Test request updated successfully.";
+            SetSuccess("Test request updated successfully.");
             return RedirectToAction(nameof(RequestDetails), new { id = request.Id });
         }
 
-        // Soft delete a test request
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteRequest(int id)
@@ -574,11 +586,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             request.RecordStatus = Status.Inactive;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Test request deleted.";
+            SetSuccess("Test request deleted.");
             return RedirectToAction(nameof(TestRequests));
         }
 
-        // List inactive (soft deleted) test requests
         public async Task<IActionResult> InactiveTestRequests()
         {
             int doctorId = GetCurrentDoctorId();
@@ -601,7 +612,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(requests);
         }
 
-        // Restore a soft-deleted test request
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RestoreRequest(int id)
@@ -615,11 +625,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             request.RecordStatus = Status.Active;
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Test request restored.";
+            SetSuccess("Test request restored.");
             return RedirectToAction(nameof(InactiveTestRequests));
         }
 
-        // Helper to populate dropdowns for test request creation/editing
         private async Task PopulateTestRequestDropdowns()
         {
             ViewBag.Patients = new SelectList(
@@ -638,14 +647,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
-
-
-        #endregion
-
-
-
+        #region Release Results
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -658,17 +660,15 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request == null) return NotFound();
 
-            // Can only release if status is Completed
             if (request.RequestStatus != RequestStatus.Completed)
             {
-                TempData["Error"] = "Results can only be released after all tests are completed.";
+                SetError("Results can only be released after all tests are completed.");
                 return RedirectToAction(nameof(RequestDetails), new { id });
             }
 
             request.RequestStatus = RequestStatus.ReleasedByDoctor;
             await _context.SaveChangesAsync();
 
-            // Notify patient that results are available
             if (request.Patient != null)
             {
                 string message = $"Dear {request.Patient.FirstName},\n\n" +
@@ -678,124 +678,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 await _emailService.SendEmailAsync(request.Patient.Email, "Your Test Results Are Ready", message);
             }
 
-            TempData["Message"] = "Results released to patient.";
+            SetSuccess("Results released to patient.");
             return RedirectToAction(nameof(RequestDetails), new { id });
         }
-
-
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelRequest(int id, string cancellationReason)
-        {
-            if (string.IsNullOrWhiteSpace(cancellationReason))
-            {
-                TempData["Error"] = "Cancellation reason is required.";
-                return RedirectToAction(nameof(RequestDetails), new { id });
-            }
-
-            int doctorId = GetCurrentDoctorId();
-            var request = await _context.TestRequests
-                .Include(tr => tr.Patient)
-                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
-
-            if (request == null) return NotFound();
-
-            // Doctor can only cancel if status is Submitted or SamplesReceived
-            if (request.RequestStatus != RequestStatus.Submitted && request.RequestStatus != RequestStatus.SamplesReceived)
-            {
-                TempData["Error"] = "Cannot cancel a request that is already in progress or completed.";
-                return RedirectToAction(nameof(RequestDetails), new { id });
-            }
-
-            request.RequestStatus = RequestStatus.Cancelled;
-            request.CancellationReason = cancellationReason;
-            request.DateCancelled = DateTime.Now;
-            await _context.SaveChangesAsync();
-
-            // Notify patient
-            if (request.Patient != null)
-            {
-                await _emailService.SendEmailAsync(request.Patient.Email,
-                    "Test Request Cancelled",
-                    $"Dear {request.Patient.FirstName},\n\n" +
-                    $"Your test request dated {request.RequestDate:dd/MM/yyyy} has been cancelled by your doctor.\n" +
-                    $"Reason: {cancellationReason}");
-            }
-
-            TempData["Message"] = "Test request cancelled.";
-            return RedirectToAction(nameof(RequestDetails), new { id });
-        }
-
-
-
-        [HttpGet]
-        public async Task<IActionResult> DownloadResultsPdf(int id)
-        {
-            int doctorId = GetCurrentDoctorId();
-            var request = await _context.TestRequests
-                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
-
-            if (request == null) return NotFound();
-
-            // Only allow if results are completed or released
-            if (request.RequestStatus != RequestStatus.Completed && request.RequestStatus != RequestStatus.ReleasedByDoctor)
-            {
-                TempData["Error"] = "Results are not yet available for download.";
-                return RedirectToAction(nameof(RequestDetails), new { id });
-            }
-
-            var pdfBytes = await _pdfService.GenerateTestResultsPdf(id);
-            if (pdfBytes == null || pdfBytes.Length == 0)
-            {
-                TempData["Error"] = "PDF generation is not yet implemented.";
-                return RedirectToAction(nameof(RequestDetails), new { id });
-            }
-
-            return File(pdfBytes, "application/pdf", $"TestResults_{request.Id}_{DateTime.Now:yyyyMMdd}.pdf");
-        }
-
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EmailResults(int id, string message)
-        {
-            int doctorId = GetCurrentDoctorId();
-            var request = await _context.TestRequests
-                .Include(tr => tr.Patient)
-                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
-
-            if (request == null) return NotFound();
-
-            if (request.RequestStatus != RequestStatus.Completed && request.RequestStatus != RequestStatus.ReleasedByDoctor)
-            {
-                TempData["Error"] = "Cannot email results before they are completed.";
-                return RedirectToAction(nameof(RequestDetails), new { id });
-            }
-
-            // Generate PDF attachment
-            var pdfBytes = await _pdfService.GenerateTestResultsPdf(id);
-            // For simplicity, we'll just send a plain email. 
-            // In a real app, use MailKit with attachment.
-
-            string subject = "Your Test Results";
-            string body = $"Dear {request.Patient.FirstName},\n\n{message}\n\n";
-            if (request.RequestStatus == RequestStatus.ReleasedByDoctor)
-                body += "Your results are attached.\n";
-            else
-                body += "Your doctor will release them shortly.\n";
-
-            await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
-
-            TempData["Message"] = "Email sent to patient.";
-            return RedirectToAction(nameof(RequestDetails), new { id });
-        }
-
-
-
-
-
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -815,14 +700,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request.RequestStatus != RequestStatus.Completed)
             {
-                TempData["Error"] = "Results can only be released after all tests are completed.";
+                SetError("Results can only be released after all tests are completed.");
                 return RedirectToAction(nameof(RequestDetails), new { id = model.RequestId });
             }
 
             request.RequestStatus = RequestStatus.ReleasedByDoctor;
             await _context.SaveChangesAsync();
 
-            // Prepare email content
             string subject = "Your Test Results Are Ready";
             string body = $"Dear {request.Patient.FirstName},\n\n{model.Note}\n\n";
 
@@ -835,23 +719,124 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 body += "You can view your results in the patient portal.\n";
             }
 
-            // Attach PDF if requested
             if (model.AttachPdf)
             {
                 var pdfBytes = await _pdfService.GenerateTestResultsPdf(model.RequestId);
-                // For simplicity, we'll just note it in the email (actual attachment requires MailKit)
                 body += "\nA PDF copy of your results is attached.\n";
                 // In production: use MailKit to attach the byte array.
             }
 
             await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
 
-            TempData["Message"] = "Results released to patient.";
+            SetSuccess("Results released to patient.");
             return RedirectToAction(nameof(RequestDetails), new { id = model.RequestId });
         }
 
+        #endregion
 
+        #region Cancel Request
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelRequest(int id, string cancellationReason)
+        {
+            if (string.IsNullOrWhiteSpace(cancellationReason))
+            {
+                SetError("Cancellation reason is required.");
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            int doctorId = GetCurrentDoctorId();
+            var request = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
+
+            if (request == null) return NotFound();
+
+            if (request.RequestStatus != RequestStatus.Submitted && request.RequestStatus != RequestStatus.SamplesReceived)
+            {
+                SetError("Cannot cancel a request that is already in progress or completed.");
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            request.RequestStatus = RequestStatus.Cancelled;
+            request.CancellationReason = cancellationReason;
+            request.DateCancelled = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            if (request.Patient != null)
+            {
+                await _emailService.SendEmailAsync(request.Patient.Email,
+                    "Test Request Cancelled",
+                    $"Dear {request.Patient.FirstName},\n\n" +
+                    $"Your test request dated {request.RequestDate:dd/MM/yyyy} has been cancelled by your doctor.\n" +
+                    $"Reason: {cancellationReason}");
+            }
+
+            SetSuccess("Test request cancelled.");
+            return RedirectToAction(nameof(RequestDetails), new { id });
+        }
+
+        #endregion
+
+        #region Download & Email Results
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadResultsPdf(int id)
+        {
+            int doctorId = GetCurrentDoctorId();
+            var request = await _context.TestRequests
+                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
+
+            if (request == null) return NotFound();
+
+            if (request.RequestStatus != RequestStatus.Completed && request.RequestStatus != RequestStatus.ReleasedByDoctor)
+            {
+                SetError("Results are not yet available for download.");
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            var pdfBytes = await _pdfService.GenerateTestResultsPdf(id);
+            if (pdfBytes == null || pdfBytes.Length == 0)
+            {
+                SetError("PDF generation is not yet implemented.");
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            return File(pdfBytes, "application/pdf", $"TestResults_{request.Id}_{DateTime.Now:yyyyMMdd}.pdf");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EmailResults(int id, string message)
+        {
+            int doctorId = GetCurrentDoctorId();
+            var request = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
+
+            if (request == null) return NotFound();
+
+            if (request.RequestStatus != RequestStatus.Completed && request.RequestStatus != RequestStatus.ReleasedByDoctor)
+            {
+                SetError("Cannot email results before they are completed.");
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            string subject = "Your Test Results";
+            string body = $"Dear {request.Patient.FirstName},\n\n{message}\n\n";
+            if (request.RequestStatus == RequestStatus.ReleasedByDoctor)
+                body += "Your results are attached.\n";
+            else
+                body += "Your doctor will release them shortly.\n";
+
+            await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
+
+            SetSuccess("Email sent to patient.");
+            return RedirectToAction(nameof(RequestDetails), new { id });
+        }
+
+        #endregion
 
         #region Alerts
 
@@ -860,7 +845,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             int doctorId = GetCurrentDoctorId();
 
-            // Default to last 5 days
             var from = startDate ?? DateTime.Today.AddDays(-5);
             var to = endDate ?? DateTime.Today;
 
@@ -900,8 +884,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
         #region Reports
 
         [HttpGet]
@@ -924,7 +906,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (pdfBytes == null || pdfBytes.Length == 0)
             {
-                TempData["Error"] = "PDF generation is not yet implemented or no data found.";
+                SetError("PDF generation is not yet implemented or no data found.");
                 return RedirectToAction(nameof(TestRequestsReport));
             }
 
@@ -933,7 +915,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
-
 
         #region Helper Methods
 
@@ -978,7 +959,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         private int GetCurrentDoctorId()
         {
-            var userIdClaim = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return int.TryParse(userIdClaim, out int id) ? id : 0;
         }
 

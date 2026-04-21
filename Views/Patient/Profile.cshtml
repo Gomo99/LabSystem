@@ -1,0 +1,65 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model PatientProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+}
+<div class="page-header">
+    <h1>My Profile</h1>
+</div>
+
+<div class="card">
+    <form asp-action="Profile" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-4"></div>
+
+        <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" class="form-control" placeholder="First Name" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" class="form-control" placeholder="Last Name" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="SouthAfricanIdNumber" class="form-label">ID Number</label>
+            <input asp-for="SouthAfricanIdNumber" class="form-control" placeholder="SA ID Number" />
+            <span asp-validation-for="SouthAfricanIdNumber" class="text-danger"></span>
+        </div>
+
+        <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label asp-for="DateOfBirth" class="form-label"></label>
+                <input asp-for="DateOfBirth" type="date" class="form-control" />
+                <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="CellphoneNumber" class="form-label"></label>
+                <input asp-for="CellphoneNumber" class="form-control" placeholder="Cellphone" />
+                <span asp-validation-for="CellphoneNumber" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" placeholder="Email Address" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="HomeAddress" class="form-label"></label>
+            <textarea asp-for="HomeAddress" class="form-control" rows="2" placeholder="Home Address"></textarea>
+            <span asp-validation-for="HomeAddress" class="text-danger"></span>
+        </div>
+
+        <div class="flex justify-between mt-4">
+            <a asp-action="DashBoard" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+    </form>
+</div>

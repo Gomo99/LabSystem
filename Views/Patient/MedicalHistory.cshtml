@@ -1,0 +1,41 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model PatientMedicalHistoryViewModel
+@{
+    ViewData["Title"] = "Medical History";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+}
+<div class="page-header">
+    <h1>Medical History</h1>
+</div>
+
+<div class="card">
+    <p style="color: var(--muted); margin-bottom: 24px;">Enter items separated by commas (e.g., Diabetes, Hypertension)</p>
+
+    <form asp-action="MedicalHistory" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-4"></div>
+
+        <div class="form-group">
+            <label asp-for="MedicalConditionsInput" class="form-label">Medical Conditions</label>
+            <textarea asp-for="MedicalConditionsInput" class="form-control" rows="2" placeholder="e.g., Diabetes, Hypertension"></textarea>
+            <span asp-validation-for="MedicalConditionsInput" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="AllergiesInput" class="form-label">Allergies</label>
+            <textarea asp-for="AllergiesInput" class="form-control" rows="2" placeholder="e.g., Penicillin, Peanuts"></textarea>
+            <span asp-validation-for="AllergiesInput" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="MedicationsInput" class="form-label">Current Medications</label>
+            <textarea asp-for="MedicationsInput" class="form-control" rows="2" placeholder="e.g., Metformin, Lisinopril"></textarea>
+            <span asp-validation-for="MedicationsInput" class="text-danger"></span>
+        </div>
+
+        <div class="flex justify-between mt-4">
+            <a asp-action="DashBoard" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Cancel</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update History</button>
+        </div>
+    </form>
+</div>

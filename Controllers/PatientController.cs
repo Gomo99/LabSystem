@@ -18,11 +18,28 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
 
+        // Standardized TempData keys
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
         public PatientController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+        }
+
+        // ======================================================================
+        //  HELPER METHODS (CLEAN + REUSABLE)
+        // ======================================================================
+        private void SetSuccess(string message)
+        {
+            TempData[SuccessMessageKey] = message;
+        }
+
+        private void SetError(string message)
+        {
+            TempData[ErrorMessageKey] = message;
         }
 
         public IActionResult DashBoard() => View();
@@ -89,7 +106,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Profile updated successfully.";
+            SetSuccess("Profile updated successfully.");
             return RedirectToAction(nameof(Profile));
         }
 
@@ -133,17 +150,17 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             if (patient == null) return NotFound();
 
             // Update medical conditions
-            UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
-            UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
-            UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
+            await UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
+            await UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
+            await UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
 
             await _context.SaveChangesAsync();
 
-            TempData["Message"] = "Medical history updated successfully.";
+            SetSuccess("Medical history updated successfully.");
             return RedirectToAction(nameof(MedicalHistory));
         }
 
-        private async void UpdatePatientMedicalHistory(Patient patient, string input, string type)
+        private async Task UpdatePatientMedicalHistory(Patient patient, string input, string type)
         {
             if (type == "condition")
                 _context.PatientConditions.RemoveRange(patient.PatientConditions);
@@ -287,14 +304,14 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request.RequestStatus != RequestStatus.ReleasedByDoctor)
             {
-                TempData["Error"] = "Results are not yet released.";
+                SetError("Results are not yet released.");
                 return RedirectToAction(nameof(RequestDetails), new { id });
             }
 
             var pdfBytes = await _pdfService.GenerateTestResultsPdf(id);
             if (pdfBytes == null || pdfBytes.Length == 0)
             {
-                TempData["Error"] = "PDF generation is not yet available.";
+                SetError("PDF generation is not yet available.");
                 return RedirectToAction(nameof(RequestDetails), new { id });
             }
 
@@ -302,6 +319,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
+
         #region Result Tracking (Graph)
 
         [HttpGet]
@@ -351,7 +369,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
-
 
         #region Consent Management
 
@@ -429,7 +446,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     $"Patient has granted you access to their test results.");
             }
 
-            TempData["Message"] = "Access granted successfully.";
+            SetSuccess("Access granted successfully.");
             return RedirectToAction(nameof(DoctorAccess));
         }
 
@@ -447,7 +464,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            TempData["Message"] = "Access revoked.";
+            SetSuccess("Access revoked.");
             return RedirectToAction(nameof(DoctorAccess));
         }
 
@@ -472,7 +489,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (pdfBytes.Length == 0)
             {
-                TempData["Error"] = "No released results found in the selected date range, or PDF generation is not yet implemented.";
+                SetError("No released results found in the selected date range, or PDF generation is not yet implemented.");
                 return RedirectToAction(nameof(ResultsReport));
             }
 

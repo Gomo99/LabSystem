@@ -1,0 +1,53 @@
+﻿@using LaboratoryTestRequestManagementSystem.ViewModel
+@model List<DoctorAccessViewModel>
+@{
+    ViewData["Title"] = "Doctor Access";
+    Layout = "~/Views/Shared/_PatientLayout.cshtml";
+}
+<div class="page-header">
+    <h1>Doctor Access</h1>
+    <a asp-action="GrantAccess" class="btn btn-primary"><i class="fas fa-plus"></i> Grant New Access</a>
+</div>
+
+<div class="card">
+    @if (Model == null || !Model.Any())
+    {
+        <p style="color: var(--muted);">You haven't granted access to any doctors yet.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Doctor</th>
+                        <th>Email</th>
+                        <th>Granted Date</th>
+                        <th>Shared Requests</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var doc in Model)
+                    {
+                        <tr>
+                            <td>@doc.DoctorName</td>
+                            <td>@doc.Email</td>
+                            <td>@doc.GrantedDate.ToString("dd/MM/yyyy")</td>
+                            <td>@(doc.SharedTestRequestIds?.Count ?? 0) requests</td>
+                            <td>
+                                <form asp-action="RevokeAccess" method="post" onsubmit="return confirm('Revoke access for @doc.DoctorName?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="doctorId" value="@doc.DoctorId" />
+                                    <button type="submit" class="btn btn-outline btn-sm" style="color: var(--danger);">
+                                        <i class="fas fa-ban"></i> Revoke
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

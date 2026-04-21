@@ -815,20 +815,7 @@
     <!-- MAIN -->
     <main class="main-content">
         <div class="content-area">
-            @if (TempData["Message"] != null)
-            {
-                <div class="alert alert-success">
-                    <i class="fas fa-circle-check"></i>
-                    <span>@TempData["Message"]</span>
-                </div>
-            }
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    <span>@TempData["Error"]</span>
-                </div>
-            }
+            <partial name="_Alerts" />
             @RenderBody()
         </div>
     </main>
@@ -848,5 +835,6 @@
         });
     </script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
