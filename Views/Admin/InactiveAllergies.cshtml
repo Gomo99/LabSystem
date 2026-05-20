@@ -1,6 +1,6 @@
 ﻿@using LaboratoryTestRequestManagementSystem.AppStatus
 @using LaboratoryTestRequestManagementSystem.ViewModel
-@model IEnumerable<MedicalCondition>
+@model IEnumerable<Allergy>
 @{
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
     ViewData["Title"] = "Medical Conditions";
@@ -15,10 +15,10 @@
 <div class="page-header">
     <div class="page-header-left">
         <h1>Medical Conditions</h1>
-        <div class="page-sub">Manage chronic conditions</div>
+        <div class="page-sub">Manage allergy</div>
     </div>
-    <a asp-action="CreateMedicalCondition" class="btn btn-primary">
-        <i class="fas fa-plus"></i> New Condition
+    <a asp-action="CreateAllergy" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Allergy
     </a>
 </div>
 
@@ -59,27 +59,25 @@
                         <td>@item.Name</td>
                         <td>@(item.Category ?? "—")</td>
                         <td>
-                            @if (item.Status == Status.Active)
+                            @if (item.Status == Status.Inactive)
                             {
-                                <span class="badge badge-teal">Active</span>
+                                <span class="badge badge-teal">Inactive</span>
                             }
-                           
+
                         </td>
                         <td>
                             <div style="display:flex;gap:6px;">
-                                <a asp-action="EditMedicalCondition" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
-                                    <i class="fas fa-pen"></i>
-                                </a>
-                                @if (item.Status == Status.Active)
+                             
+                                @if (item.Status == Status.Inactive)
                                 {
-                                    <form asp-action="DeleteMedicalCondition" method="post" style="display:inline;">
+                                    <form asp-action="RestoreAllergy" method="post" style="display:inline;">
                                         <input type="hidden" name="id" value="@item.Id" />
-                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this condition?')">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reactivate this allergy?')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 }
-                             
+
                             </div>
                         </td>
                     </tr>

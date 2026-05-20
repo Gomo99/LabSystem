@@ -66,6 +66,33 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(conditions);
         }
 
+
+        public async Task<IActionResult> InactiveMedicalConditions(AdminFilterViewModel filter)
+        {
+            var query = _context.MedicalConditions.AsQueryable();
+
+            if (!filter.ShowInactive)
+                query = query.Where(mc => mc.Status == Status.Inactive);
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+                query = query.Where(mc => mc.Name.Contains(filter.SearchTerm));
+
+            if (!string.IsNullOrWhiteSpace(filter.Category))
+                query = query.Where(mc => mc.Category == filter.Category);
+
+            var conditions = await query.OrderBy(mc => mc.Name).ToListAsync();
+
+            ViewBag.Categories = await _context.MedicalConditions
+                .Where(mc => mc.Category != null)
+                .Select(mc => mc.Category)
+                .Distinct()
+                .ToListAsync();
+
+            return View(conditions);
+        }
+
+
+
         [HttpGet]
         public IActionResult CreateMedicalCondition() => View(new MedicalConditionViewModel());
 
@@ -183,6 +210,33 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             return View(allergies);
         }
+
+
+        public async Task<IActionResult> InactiveAllergies(AdminFilterViewModel filter)
+        {
+            var query = _context.Allergies.AsQueryable();
+
+            if (!filter.ShowInactive)
+                query = query.Where(a => a.Status == Status.Inactive);
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+                query = query.Where(a => a.Name.Contains(filter.SearchTerm));
+
+            if (!string.IsNullOrWhiteSpace(filter.Category))
+                query = query.Where(a => a.Category == filter.Category);
+
+            var allergies = await query.OrderBy(a => a.Name).ToListAsync();
+
+            ViewBag.Categories = await _context.Allergies
+                .Where(a => a.Category != null)
+                .Select(a => a.Category)
+                .Distinct()
+                .ToListAsync();
+
+            return View(allergies);
+        }
+
+
 
         [HttpGet]
         public IActionResult CreateAllergy() => View(new AllergyViewModel());

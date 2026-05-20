@@ -66,7 +66,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             return View(patients);
         }
-
+       
         #endregion
 
         #region Patient Details
