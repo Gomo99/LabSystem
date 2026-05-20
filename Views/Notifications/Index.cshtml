@@ -1,0 +1,97 @@
+﻿@using System.Security.Claims
+@model List<LaboratoryTestRequestManagementSystem.Models.Notification>
+@{
+    ViewData["Title"] = "Notifications";
+
+    // Dynamically pick the correct layout for the user's role
+    var role = User.FindFirstValue(ClaimTypes.Role);
+    string layout = role switch
+    {
+        "Admin" => "_AdminLayout",
+        "Doctor" => "_DoctorLayout",
+        "LaboratoryManager" => "_LaboratoryManagerLayout",
+        "LabTechnician" => "_LabTechnicianLayout",
+        "Patient" => "_PatientLayout",
+        _ => "_Layout"   // fallback (if you have a generic one)
+    };
+    Layout = layout;
+}
+
+
+<h2>Notifications</h2>
+
+@if (Model.Any(n => !n.IsRead))
+{
+    <form asp-action="MarkAllAsRead" method="post" style="margin-bottom: 20px;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-check-double"></i> Mark All as Read
+        </button>
+    </form>
+}
+
+
+<div style="display:flex; gap:10px; margin-bottom:20px;">
+    @if (Model.Any(n => !n.IsRead))
+    {
+        <form asp-action="MarkAllAsRead" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-check-double"></i> Mark All as Read
+            </button>
+        </form>
+    }
+    @if (Model.Any())
+    {
+        <form asp-action="ClearAll" method="post" onsubmit="return confirm('Are you sure you want to clear all notifications?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-trash"></i> Clear All
+            </button>
+        </form>
+    }
+</div>
+
+@if (!Model.Any())
+{
+    <p>No notifications.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var item in Model)
+        {
+            <li class="list-group-item @(item.IsRead ? "" : "list-group-item-info")">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        @if (!string.IsNullOrEmpty(item.Link))
+                        {
+                            <a href="@item.Link">@item.Message</a>
+                        }
+                        else
+                        {
+                            @item.Message
+                        }
+                        <br /><small>@item.CreatedDate.ToString("g")</small>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        @if (!item.IsRead)
+                        {
+                            <form asp-action="MarkAsRead" method="post">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">Mark as read</button>
+                            </form>
+                        }
+                        <form asp-action="Delete" method="post" onsubmit="return confirm('Delete this notification?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+        }
+    </ul>
+}

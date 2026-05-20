@@ -650,6 +650,107 @@
             background: transparent;
         }
 
+
+
+        .sidebar-brand {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-text {
+            flex: 1;
+        }
+
+        .sidebar-notification {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Notification Bell */
+        .notification-btn {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+            color: var(--muted);
+            cursor: pointer;
+            transition: .25s;
+            text-decoration: none;
+        }
+
+            .notification-btn:hover {
+                background: rgba(14,206,206,.12);
+                color: var(--teal);
+            }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 50px;
+            background: var(--danger);
+            color: white;
+            font-size: .65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+
+        /* Bell shake animation */
+        @@keyframes bellShake {
+            0%, 100% {
+                transform: rotate(0);
+            }
+
+            15% {
+                transform: rotate(15deg);
+            }
+
+            30% {
+                transform: rotate(-15deg);
+            }
+
+            45% {
+                transform: rotate(10deg);
+            }
+
+            60% {
+                transform: rotate(-10deg);
+            }
+
+            75% {
+                transform: rotate(5deg);
+            }
+
+            90% {
+                transform: rotate(-5deg);
+            }
+        }
+
+        .shake-bell {
+            animation: bellShake 0.6s ease-in-out infinite;
+        }
+
+        /* Stop shaking when user has acknowledged */
+        .no-shake .shake-bell {
+            animation: none;
+        }
+
+
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -658,10 +759,17 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-icon"><i class="fas fa-flask"></i></div>
+            <div class="brand-icon">
+                <i class="fas fa-flask"></i>
+            </div>
+
             <div class="brand-text">
                 <div class="b-name">NMB-HLabSys</div>
                 <div class="b-sub">Administrator</div>
+            </div>
+
+            <div class="sidebar-notification">
+                @await Component.InvokeAsync("NotificationBell")
             </div>
         </div>
 
@@ -681,6 +789,25 @@
             <a class="@Nav("/Admin/Medications")" asp-controller="Admin" asp-action="Medications">
                 <i class="fas fa-pills"></i> Medications
             </a>
+
+            <!-- ⬇️ New Account section -->
+            <div class="nav-section-label">Account</div>
+            <a class="@Nav("/Account/ChangePassword")" asp-controller="Account" asp-action="ChangePassword">
+                <i class="fas fa-key"></i> Change Password
+            </a>
+            <a class="@Nav("/Account/ChangeUsername")" asp-controller="Account" asp-action="ChangeUsername">
+                <i class="fas fa-at"></i> Change Username
+            </a>
+            <a class="@Nav("/Account/EditProfile")" asp-controller="Account" asp-action="EditProfile">
+                <i class="fas fa-user-pen"></i> Edit Profile
+            </a>
+            <form asp-controller="Account" asp-action="DeactivateAccount" method="post"
+                  onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="nav-item" style="width:100%; background:none; border:none; font-family:'Outfit',sans-serif; font-size:.84rem; font-weight:500; color:var(--muted); text-align:left; cursor:pointer;">
+                    <i class="fas fa-user-slash"></i> Deactivate Account
+                </button>
+            </form>
         </nav>
 
         <div class="sidebar-footer">
@@ -690,6 +817,8 @@
                     <div class="u-name">@firstName @lastName</div>
                     <div class="u-role">Administrator</div>
                 </div>
+
+
                 <form asp-controller="Account" asp-action="Logout" method="post" style="margin:0;">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="logout-btn" title="Sign Out">
@@ -770,6 +899,115 @@
         });
     </script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Only run if authenticated (the hub requires authentication)
+        @if (User.Identity.IsAuthenticated)
+        {
+                <text>
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/notificationHub")
+                    .configureLogging(signalR.LogLevel.Information)
+                    .build();
+
+                connection.on("ReceiveNotification", (notification) => {
+                    // Show a toast popup
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
+                    });
+                    Toast.fire({
+                        icon: 'info',
+                        title: notification.message,
+                        text: notification.link ? 'Click to view' : ''
+                    });
+                });
+
+                connection.on("UpdateUnreadCount", (count) => {
+                    const badge = document.querySelector('.notification-badge');
+                    if (badge) {
+                        badge.textContent = count;
+                        badge.style.display = count > 0 ? 'flex' : 'none';
+                    }
+                });
+
+                async function startConnection() {
+                    try {
+                        await connection.start();
+                        console.log("SignalR Connected.");
+                    } catch (err) {
+                        console.error(err);
+                        setTimeout(startConnection, 5000);
+                    }
+                }
+
+                startConnection();
+                </text>
+
+
+
+        }
+    </script>
+
+
+    <script>
+        // ---- Bell shake logic ----
+        function acknowledgeBell() {
+            // Store current unread count in localStorage when bell is clicked
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                const count = parseInt(badge.textContent) || 0;
+                localStorage.setItem('bellAcknowledged', count);
+            }
+            // The link will navigate normally after this
+        }
+
+        function updateBellShake() {
+            const container = document.getElementById('notificationBellContainer');
+            if (!container) return;
+
+            const badge = document.querySelector('.notification-badge');
+            const currentCount = badge ? parseInt(badge.textContent) || 0 : 0;
+            const acknowledged = localStorage.getItem('bellAcknowledged');
+
+            // Shake if there are unread notifications and they haven't been acknowledged
+            if (currentCount > 0 && (!acknowledged || parseInt(acknowledged) !== currentCount)) {
+                container.classList.add('shake-bell');
+            } else {
+                container.classList.remove('shake-bell');
+            }
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', updateBellShake);
+
+        // If you are using SignalR to update the badge in real time, also call updateBellShake
+        // inside your SignalR "UpdateUnreadCount" callback.
+        connection.on("UpdateUnreadCount", (count) => {
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? 'flex' : 'none';
+            }
+            // After the count updates, re-evaluate shake
+            updateBellShake();
+        });
+
+        // Also re-evaluate when the SignalR connection starts (in case localStorage changed)
+        connection.onreconnected(() => {
+            updateBellShake();
+        });
+    </script>
+
+
+
 </body>
 </html>

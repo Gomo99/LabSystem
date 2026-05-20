@@ -18,7 +18,7 @@ namespace LaboratoryTestRequestManagementSystem.Data
         public DbSet<MedicalCondition> MedicalConditions { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
         public DbSet<Medication> Medications { get; set; }
-
+        public DbSet<Notification> Notifications { get; set; }
         // Patient medical history junction tables
         public DbSet<PatientCondition> PatientConditions { get; set; }
         public DbSet<PatientAllergy> PatientAllergies { get; set; }
@@ -364,6 +364,16 @@ namespace LaboratoryTestRequestManagementSystem.Data
                 .HasOne(trh => trh.TestRequest)
                 .WithMany()
                 .HasForeignKey(trh => trh.TestRequestId);
+
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.ToTable("Notifications");
+                entity.HasKey(n => n.Id);
+                entity.Property(n => n.Message).IsRequired().HasMaxLength(500);
+                entity.Property(n => n.UserType).IsRequired().HasMaxLength(50);
+                entity.Property(n => n.Status).HasDefaultValue(Status.Active);
+            });
 
             // ------------------------------------------------------------
             // 6. Default Values for Status / IsActive columns

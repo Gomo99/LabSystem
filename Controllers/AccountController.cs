@@ -794,7 +794,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         // ======================================================================
         [Authorize]
         [HttpGet]
-        public IActionResult ChangePassword() => View();
+        public IActionResult ChangePassword()
+        {
+            // Determine the correct dashboard URL for the Cancel button
+            string dashboardUrl = Url.Action("Dashboard", GetDashboardControllerName());
+            ViewData["DashboardUrl"] = dashboardUrl;
+            return View();
+        }
 
         [Authorize]
         [HttpPost]
@@ -1123,6 +1129,21 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             SetSuccess("Account created via Google. Please complete your profile.");
             return RedirectToAction("Profile", "Patient");
+        }
+
+
+        private string GetDashboardControllerName()
+        {
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            return role switch
+            {
+                "Admin" => "Admin",
+                "Doctor" => "Doctor",
+                "LaboratoryManager" => "LaboratoryManager",
+                "LabTechnician" => "LabTechnician",
+                "Patient" => "Patient",
+                _ => "Account" // fallback (should never happen)
+            };
         }
     }
 }

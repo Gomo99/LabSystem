@@ -1,0 +1,17 @@
+﻿@model int
+
+<span id="notificationBellContainer" class="@(Model > 0 ? "shake-bell" : "")">
+    <a class="notification-btn"
+       asp-controller="Notifications"
+       asp-action="Index"
+       title="Notifications"
+       onclick="acknowledgeBell()">
+
+        <i class="fas fa-bell"></i>
+
+        @if (Model > 0)
+        {
+            <span class="notification-badge">@Model</span>
+        }
+    </a>
+</span>

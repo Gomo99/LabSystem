@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LaboratoryTestRequestManagementSystem.Migrations
 {
     /// <inheritdoc />
-    public partial class SeedLookupTables : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -92,6 +92,25 @@ namespace LaboratoryTestRequestManagementSystem.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Medications", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    UserType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Message = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Link = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsRead = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false, defaultValue: "Active")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notifications", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -981,6 +1000,9 @@ namespace LaboratoryTestRequestManagementSystem.Migrations
         {
             migrationBuilder.DropTable(
                 name: "DoctorPatientAccesses");
+
+            migrationBuilder.DropTable(
+                name: "Notifications");
 
             migrationBuilder.DropTable(
                 name: "OrderItems");

@@ -1,4 +1,5 @@
 using LaboratoryTestRequestManagementSystem.Data;
+using LaboratoryTestRequestManagementSystem.Hubs;
 using LaboratoryTestRequestManagementSystem.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -11,11 +12,11 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<LabDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+builder.Services.AddSignalR();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 builder.Services.AddScoped<IPdfReportService, PdfReportService>();
-
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -60,6 +61,7 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.MapControllerRoute(
     name: "default",
