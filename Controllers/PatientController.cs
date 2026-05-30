@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace LaboratoryTestRequestManagementSystem.Controllers
 {
@@ -22,11 +23,15 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private const string SuccessMessageKey = "SuccessMessage";
         private const string ErrorMessageKey = "ErrorMessage";
 
-        public PatientController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
+        private readonly INotificationService _notificationService;  // NEW
+
+        public PatientController(LabDbContext context, IEmailService emailService,
+                                 IPdfReportService pdfService, INotificationService notificationService) // NEW param
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+            _notificationService = notificationService;  // NEW
         }
 
         // ======================================================================
@@ -290,6 +295,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 TestResults = testResults
             };
 
+            // Check if the patient has been granted access to download the PDF
+            bool granted = await _context.ReportAccessRequests
+                .AnyAsync(r => r.TestRequestId == id && r.PatientId == patientId
+                              && r.Status == AccessRequestStatus.Granted);
+            model.HasGrantedAccess = granted;
+
             return View(model);
         }
 
@@ -308,6 +319,17 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return RedirectToAction(nameof(RequestDetails), new { id });
             }
 
+            // NEW: Check access request
+            var access = await _context.ReportAccessRequests
+                .FirstOrDefaultAsync(r => r.TestRequestId == id && r.PatientId == patientId
+                                          && r.Status == AccessRequestStatus.Granted);
+            if (access == null)
+            {
+                // Redirect to the request page (show button to request access)
+                return RedirectToAction(nameof(RequestDetails), new { id });
+            }
+
+            // original code continues
             var pdfBytes = await _pdfService.GenerateTestResultsPdf(id);
             if (pdfBytes == null || pdfBytes.Length == 0)
             {
@@ -497,5 +519,392 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
+
+
+        #region Data Portability (Export / Import)
+
+        [HttpGet]
+        public async Task<IActionResult> ExportData()
+        {
+            int patientId = GetCurrentPatientId();
+
+            var patient = await _context.Patients
+                .Include(p => p.PatientConditions).ThenInclude(pc => pc.MedicalCondition)
+                .Include(p => p.PatientAllergies).ThenInclude(pa => pa.Allergy)
+                .Include(p => p.PatientMedications).ThenInclude(pm => pm.Medication)
+                .FirstOrDefaultAsync(p => p.Id == patientId);
+
+            if (patient == null) return NotFound();
+
+            // Gather test results (from this lab)
+            var results = await _context.TestResults
+                .Where(r => r.TestRequest.PatientId == patientId
+                            && r.TestRequest.RequestStatus == RequestStatus.ReleasedByDoctor)
+                .Include(r => r.TestType)
+                .Include(r => r.TestRequest)
+                .ToListAsync();
+
+            var importedResults = await _context.ImportedTestResults
+                .Where(i => i.PatientId == patientId)
+                .ToListAsync();
+
+            var exportData = new
+            {
+                Patient = new
+                {
+                    FirstName = patient.FirstName,
+                    LastName = patient.LastName,
+                    SouthAfricanIdNumber = patient.SouthAfricanIdNumber,
+                    DateOfBirth = patient.DateOfBirth,
+                    CellphoneNumber = patient.CellphoneNumber,
+                    Email = patient.Email,
+                    HomeAddress = patient.HomeAddress
+                },
+                MedicalConditions = patient.PatientConditions
+                    .Select(pc => pc.MedicalCondition.Name).ToList(),
+                Allergies = patient.PatientAllergies
+                    .Select(pa => pa.Allergy.Name).ToList(),
+                Medications = patient.PatientMedications
+                    .Select(pm => pm.Medication.Name).ToList(),
+                TestResults = results.Select(r => new
+                {
+                    TestName = r.TestType.TestName,
+                    ResultValue = r.ResultValue,
+                    Units = r.TestType.UnitsOfMeasurement,
+                    NormalRange = r.TestType.NormalRangeMin.HasValue && r.TestType.NormalRangeMax.HasValue
+                        ? $"{r.TestType.NormalRangeMin} - {r.TestType.NormalRangeMax}"
+                        : null,
+                    Date = r.CompletedDate,
+                    IsAbnormal = r.IsAbnormal,
+                    Notes = r.Notes
+                }),
+                ImportedTestResults = importedResults.Select(i => new
+                {
+                    TestName = i.TestName,
+                    ResultValue = i.ResultValue,
+                    Units = i.Units,
+                    NormalRange = i.NormalRange,
+                    Date = i.ResultDate,
+                    LabName = i.LabName
+                })
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(exportData,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
+            return File(bytes, "application/json", $"MyHealthData_{DateTime.Now:yyyyMMdd}.json");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportQrCode()
+        {
+            int patientId = GetCurrentPatientId();
+            // Reuse the same data export
+            var patient = await _context.Patients
+                .Include(p => p.PatientConditions).ThenInclude(pc => pc.MedicalCondition)
+                .Include(p => p.PatientAllergies).ThenInclude(pa => pa.Allergy)
+                .Include(p => p.PatientMedications).ThenInclude(pm => pm.Medication)
+                .FirstOrDefaultAsync(p => p.Id == patientId);
+
+            if (patient == null) return NotFound();
+
+            var results = await _context.TestResults
+                .Where(r => r.TestRequest.PatientId == patientId
+                            && r.TestRequest.RequestStatus == RequestStatus.ReleasedByDoctor)
+                .Include(r => r.TestType)
+                .Include(r => r.TestRequest)
+                .ToListAsync();
+
+            var importedResults = await _context.ImportedTestResults
+                .Where(i => i.PatientId == patientId)
+                .ToListAsync();
+
+            var exportData = new
+            {
+                Patient = new
+                {
+                    patient.FirstName,
+                    patient.LastName,
+                    patient.SouthAfricanIdNumber,
+                    patient.DateOfBirth,
+                    patient.CellphoneNumber,
+                    patient.Email,
+                    patient.HomeAddress
+                },
+                MedicalConditions = patient.PatientConditions.Select(pc => pc.MedicalCondition.Name).ToList(),
+                Allergies = patient.PatientAllergies.Select(pa => pa.Allergy.Name).ToList(),
+                Medications = patient.PatientMedications.Select(pm => pm.Medication.Name).ToList(),
+                TestResults = results.Select(r => new
+                {
+                    TestName = r.TestType.TestName,
+                    r.ResultValue,
+                    Units = r.TestType.UnitsOfMeasurement,
+                    NormalRange = r.TestType.NormalRangeMin.HasValue && r.TestType.NormalRangeMax.HasValue
+                        ? $"{r.TestType.NormalRangeMin} - {r.TestType.NormalRangeMax}"
+                        : null,
+                    Date = r.CompletedDate,
+                    r.IsAbnormal,
+                    r.Notes
+                }),
+                ImportedTestResults = importedResults.Select(i => new
+                {
+                    i.TestName,
+                    i.ResultValue,
+                    i.Units,
+                    i.NormalRange,
+                    Date = i.ResultDate,
+                    i.LabName
+                })
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(exportData);
+
+            using var qrGenerator = new QRCoder.QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(json, QRCoder.QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
+            byte[] qrBytes = qrCode.GetGraphic(20);
+
+            return File(qrBytes, "image/png");
+        }
+
+        [HttpGet]
+        public IActionResult ImportData()
+        {
+            return View(new ImportDataViewModel());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportData(ImportDataViewModel model)
+        {
+            if (model.File == null || model.File.Length == 0)
+            {
+                ModelState.AddModelError("File", "Please select a JSON file.");
+                return View(model);
+            }
+
+            string json;
+            using (var reader = new StreamReader(model.File.OpenReadStream()))
+            {
+                json = await reader.ReadToEndAsync();
+            }
+
+            JsonDocument doc;
+            try
+            {
+                doc = JsonDocument.Parse(json);
+            }
+            catch
+            {
+                ModelState.AddModelError("File", "Invalid JSON file.");
+                return View(model);
+            }
+
+            var root = doc.RootElement;
+
+            // Update patient profile
+            if (root.TryGetProperty("Patient", out JsonElement patientElement))
+            {
+                int patientId = GetCurrentPatientId();
+                var patient = await _context.Patients.FindAsync(patientId);
+                if (patient != null)
+                {
+                    patient.FirstName = patientElement.GetProperty("FirstName").GetString();
+                    patient.LastName = patientElement.GetProperty("LastName").GetString();
+                    patient.SouthAfricanIdNumber = patientElement.GetProperty("SouthAfricanIdNumber").GetString();
+                    patient.DateOfBirth = patientElement.GetProperty("DateOfBirth").GetDateTime();
+                    patient.CellphoneNumber = patientElement.GetProperty("CellphoneNumber").GetString();
+                    patient.Email = patientElement.GetProperty("Email").GetString();
+                    patient.HomeAddress = patientElement.GetProperty("HomeAddress").GetString();
+                }
+            }
+
+            // Update medical history
+            if (root.TryGetProperty("MedicalConditions", out JsonElement conditions))
+            {
+                var patientId = GetCurrentPatientId();
+                var patient = await _context.Patients.Include(p => p.PatientConditions).FirstOrDefaultAsync(p => p.Id == patientId);
+                if (patient != null)
+                {
+                    await UpdatePatientMedicalHistoryFromList(patient, conditions.EnumerateArray().Select(c => c.GetString()).ToList(), "condition");
+                }
+            }
+
+            if (root.TryGetProperty("Allergies", out JsonElement allergies))
+            {
+                var patientId = GetCurrentPatientId();
+                var patient = await _context.Patients.Include(p => p.PatientAllergies).FirstOrDefaultAsync(p => p.Id == patientId);
+                if (patient != null)
+                {
+                    await UpdatePatientMedicalHistoryFromList(patient, allergies.EnumerateArray().Select(a => a.GetString()).ToList(), "allergy");
+                }
+            }
+
+            if (root.TryGetProperty("Medications", out JsonElement medications))
+            {
+                var patientId = GetCurrentPatientId();
+                var patient = await _context.Patients.Include(p => p.PatientMedications).FirstOrDefaultAsync(p => p.Id == patientId);
+                if (patient != null)
+                {
+                    await UpdatePatientMedicalHistoryFromList(patient, medications.EnumerateArray().Select(m => m.GetString()).ToList(), "medication");
+                }
+            }
+
+            // Import test results (both local and imported)
+            var importedTestResults = new List<ImportedTestResult>();
+            if (root.TryGetProperty("TestResults", out JsonElement testResults))
+            {
+                foreach (var item in testResults.EnumerateArray())
+                {
+                    importedTestResults.Add(new ImportedTestResult
+                    {
+                        PatientId = GetCurrentPatientId(),
+                        TestName = item.GetProperty("TestName").GetString(),
+                        ResultValue = item.GetProperty("ResultValue").GetString(),
+                        Units = item.TryGetProperty("Units", out var u) ? u.GetString() : null,
+                        NormalRange = item.TryGetProperty("NormalRange", out var nr) ? nr.GetString() : null,
+                        ResultDate = item.TryGetProperty("Date", out var d) && d.ValueKind != JsonValueKind.Null ? d.GetDateTime() : null,
+                        LabName = "Imported from external lab"
+                    });
+                }
+            }
+
+            if (root.TryGetProperty("ImportedTestResults", out JsonElement imported))
+            {
+                foreach (var item in imported.EnumerateArray())
+                {
+                    importedTestResults.Add(new ImportedTestResult
+                    {
+                        PatientId = GetCurrentPatientId(),
+                        TestName = item.GetProperty("TestName").GetString(),
+                        ResultValue = item.GetProperty("ResultValue").GetString(),
+                        Units = item.TryGetProperty("Units", out var u) ? u.GetString() : null,
+                        NormalRange = item.TryGetProperty("NormalRange", out var nr) ? nr.GetString() : null,
+                        ResultDate = item.TryGetProperty("Date", out var d) && d.ValueKind != JsonValueKind.Null ? d.GetDateTime() : null,
+                        LabName = item.TryGetProperty("LabName", out var ln) ? ln.GetString() : "External lab"
+                    });
+                }
+            }
+
+            if (importedTestResults.Any())
+            {
+                _context.ImportedTestResults.AddRange(importedTestResults);
+            }
+
+            await _context.SaveChangesAsync();
+
+            SetSuccess("Data imported successfully.");
+            return RedirectToAction(nameof(ImportData));
+        }
+
+        // Helper to update medical history from a list of names
+        private async Task UpdatePatientMedicalHistoryFromList(Patient patient, List<string> items, string type)
+        {
+            if (type == "condition")
+                _context.PatientConditions.RemoveRange(patient.PatientConditions);
+            else if (type == "allergy")
+                _context.PatientAllergies.RemoveRange(patient.PatientAllergies);
+            else if (type == "medication")
+                _context.PatientMedications.RemoveRange(patient.PatientMedications);
+
+            foreach (var item in items)
+            {
+                if (string.IsNullOrWhiteSpace(item)) continue;
+
+                if (type == "condition")
+                {
+                    var condition = await _context.MedicalConditions.FirstOrDefaultAsync(mc => mc.Name == item);
+                    if (condition == null)
+                    {
+                        condition = new MedicalCondition { Name = item, Status = Status.Active };
+                        _context.MedicalConditions.Add(condition);
+                        await _context.SaveChangesAsync();
+                    }
+                    patient.PatientConditions.Add(new PatientCondition { PatientId = patient.Id, MedicalConditionId = condition.Id });
+                }
+                else if (type == "allergy")
+                {
+                    var allergy = await _context.Allergies.FirstOrDefaultAsync(a => a.Name == item);
+                    if (allergy == null)
+                    {
+                        allergy = new Allergy { Name = item, Status = Status.Active };
+                        _context.Allergies.Add(allergy);
+                        await _context.SaveChangesAsync();
+                    }
+                    patient.PatientAllergies.Add(new PatientAllergy { PatientId = patient.Id, AllergyId = allergy.Id });
+                }
+                else if (type == "medication")
+                {
+                    var medication = await _context.Medications.FirstOrDefaultAsync(m => m.Name == item);
+                    if (medication == null)
+                    {
+                        medication = new Medication { Name = item, Status = Status.Active };
+                        _context.Medications.Add(medication);
+                        await _context.SaveChangesAsync();
+                    }
+                    patient.PatientMedications.Add(new PatientMedication { PatientId = patient.Id, MedicationId = medication.Id });
+                }
+            }
+        }
+
+        #endregion
+
+
+        #region Report Access Request
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestPdfAccess(int testRequestId)
+        {
+            int patientId = GetCurrentPatientId();
+
+            var request = await _context.TestRequests
+                .FirstOrDefaultAsync(tr => tr.Id == testRequestId && tr.PatientId == patientId && tr.RecordStatus == Status.Active);
+
+            if (request == null) return NotFound();
+
+            if (request.RequestStatus != RequestStatus.ReleasedByDoctor)
+            {
+                SetError("This request has not been released by the doctor yet.");
+                return RedirectToAction(nameof(RequestDetails), new { id = testRequestId });
+            }
+
+            // Check for existing pending request
+            var existing = await _context.ReportAccessRequests
+                .FirstOrDefaultAsync(r => r.TestRequestId == testRequestId && r.PatientId == patientId
+                                          && r.Status == AccessRequestStatus.Pending);
+            if (existing != null)
+            {
+                SetError("A request is already pending. Please wait for the doctor's response.");
+                return RedirectToAction(nameof(RequestDetails), new { id = testRequestId });
+            }
+
+            var accessRequest = new ReportAccessRequest
+            {
+                PatientId = patientId,
+                DoctorId = request.DoctorId,
+                TestRequestId = testRequestId,
+                RequestDate = DateTime.Now,
+                Status = AccessRequestStatus.Pending
+            };
+            _context.ReportAccessRequests.Add(accessRequest);
+            await _context.SaveChangesAsync();
+
+            // Notify the doctor
+            string patientName = (await _context.Patients.FindAsync(patientId))?.FirstName ?? "A patient";
+            string message = $"{patientName} has requested access to download the PDF for test request #{testRequestId}.";
+            string link = $"/Doctor/PendingPdfRequests";   // or direct to the request if you prefer
+            await _notificationService.CreateAsync(request.DoctorId, "Doctor", message, link);
+
+            SetSuccess("Access request sent to your doctor. You can download the PDF once approved.");
+            return RedirectToAction(nameof(RequestDetails), new { id = testRequestId });
+        }
+
+        #endregion
+
+
+
+
+
     }
 }

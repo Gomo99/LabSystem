@@ -1,0 +1,18 @@
+﻿@model LaboratoryTestRequestManagementSystem.ViewModel.ImportDataViewModel
+@{
+    ViewData["Title"] = "Import Health Data";
+    Layout = "_PatientLayout"; // adjust dynamically if needed
+}
+
+<h2>Import Health Data</h2>
+<p>Upload a JSON file previously exported from another laboratory. Your profile, medical history, and test results will be updated.</p>
+
+<form asp-action="ImportData" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label asp-for="File" class="form-label"></label>
+        <input asp-for="File" type="file" class="form-control" accept=".json" />
+        <span asp-validation-for="File" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Import</button>
+</form>

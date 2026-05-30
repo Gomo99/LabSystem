@@ -1,0 +1,76 @@
+﻿@model List<LaboratoryTestRequestManagementSystem.ViewModel.PdfAccessRequestViewModel>
+@{
+    ViewData["Title"] = "Pending PDF Access Requests";
+    Layout = "_DoctorLayout";
+}
+
+<h2>Pending PDF Access Requests</h2>
+
+@if (!Model.Any())
+{
+    <p>No pending requests.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Patient</th>
+                <th>Request Date</th>
+                <th>Test Request ID</th>
+                <th>Urgency</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.PatientName</td>
+                    <td>@item.RequestDate.ToString("g")</td>
+                    <td>@item.TestRequestId</td>
+                    <td>@item.Urgency</td>
+                    <td>
+                        <form asp-action="GrantPdfAccess" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@item.Id" />
+                            <button type="submit" class="btn btn-sm btn-success">Grant</button>
+                        </form>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="denyAccess(@item.Id)">Deny</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@section Scripts {
+    <script>
+        function getAntiForgeryToken() {
+            // Get the anti-forgery token value from the hidden input rendered by @Html.AntiForgeryToken()
+            var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            return tokenInput ? tokenInput.value : '';
+        }
+
+        function denyAccess(requestId) {
+            Swal.fire({
+                title: 'Reason for denial',
+                input: 'text',
+                inputPlaceholder: 'Enter reason...',
+                showCancelButton: true,
+                confirmButtonText: 'Deny',
+                preConfirm: (reason) => {
+                    if (!reason) {
+                        Swal.showValidationMessage('Reason is required');
+                        return false;
+                    }
+                    return fetch(`@Url.Action("DenyPdfAccess", "Doctor")`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `requestId=${requestId}&reason=${encodeURIComponent(reason)}&__RequestVerificationToken=${getAntiForgeryToken()}`
+                    }).then(() => location.reload());
+                }
+            });
+        }
+    </script>
+}

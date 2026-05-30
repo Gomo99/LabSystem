@@ -12,5 +12,7 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
         public RequestStatus Status { get; set; }
         public bool CanViewResults { get; set; }
         public List<PatientTestResultItemViewModel> TestResults { get; set; } = new();
+
+        public bool HasGrantedAccess { get; set; }
     }
 }

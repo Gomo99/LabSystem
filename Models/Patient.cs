@@ -1,4 +1,5 @@
-﻿using LaboratoryTestRequestManagementSystem.AppStatus;
+﻿// Models/Patient.cs
+using LaboratoryTestRequestManagementSystem.AppStatus;
 using System.ComponentModel.DataAnnotations;
 
 namespace LaboratoryTestRequestManagementSystem.Models
@@ -14,7 +15,7 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public string LastName { get; set; } = null!;
 
         [Required, StringLength(13)]
-        public string SouthAfricanIdNumber { get; set; } = null!; // Unique
+        public string SouthAfricanIdNumber { get; set; } = null!;
 
         [Required]
         public DateTime DateOfBirth { get; set; }
@@ -23,34 +24,32 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public string CellphoneNumber { get; set; } = null!;
 
         [Required, EmailAddress]
-        public string Email { get; set; } = null!; // Used as username
+        public string Email { get; set; } = null!;
 
         [Required]
         public string HomeAddress { get; set; } = null!;
 
-        // Security
         [Required]
         public string PasswordHash { get; set; } = null!;
 
         public Status IsActive { get; set; } = Status.Active;
 
-        // Password management
         public bool MustChangePassword { get; set; } = false;
         public string? ResetToken { get; set; }
         public DateTime? ResetTokenExpiry { get; set; }
         public Status Status { get; set; } = Status.Active;
 
-        // Lockout
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LockoutEnd { get; set; }
+
+        // NEW – who registered the patient (null = self‑registered)
+        public int? RegisteredByDoctorId { get; set; }
+        public Employee? RegisteredByDoctor { get; set; }
 
         // Navigation properties
         public ICollection<PatientCondition> PatientConditions { get; set; } = new List<PatientCondition>();
         public ICollection<PatientAllergy> PatientAllergies { get; set; } = new List<PatientAllergy>();
         public ICollection<PatientMedication> PatientMedications { get; set; } = new List<PatientMedication>();
         public ICollection<DoctorPatientAccess> DoctorAccessGrants { get; set; } = new List<DoctorPatientAccess>();
-
-        // Test requests (will be added later in the Doctor subsystem)
-        // public ICollection<TestRequest> TestRequests { get; set; }
     }
 }

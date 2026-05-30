@@ -17,16 +17,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly LabDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
+        private readonly INotificationService _notificationService;   // NEW
 
-        // Standardized TempData keys
         private const string SuccessMessageKey = "SuccessMessage";
         private const string ErrorMessageKey = "ErrorMessage";
 
-        public LabTechnicianController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
+        public LabTechnicianController(LabDbContext context, IEmailService emailService,
+                                       IPdfReportService pdfService, INotificationService notificationService) // NEW param
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+            _notificationService = notificationService;   // NEW
         }
 
         // ======================================================================
@@ -281,7 +283,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             }
 
             await _context.SaveChangesAsync();
-
+            var doctor = await _context.Employees.FindAsync(request.DoctorId);
+            if (doctor != null)
+            {
+                await _notificationService.CreateAsync(doctor.Id, "Doctor",
+                    $"Good news, Dr. {doctor.LastName}! The samples for request #{request.Id} (patient: {request.Patient?.FirstName}) have been received and are being processed.",
+                    $"/Doctor/RequestDetails/{request.Id}");
+            }
             SetSuccess("Samples received successfully.");
             return RedirectToAction(nameof(PendingTestRequests));
         }
@@ -667,9 +675,16 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var request = testRequestTestType.TestRequest;
             bool allVerified = request.TestRequestTestTypes.All(trt => trt.RequestStatus == RequestStatus.Verified);
 
-            if (allVerified)
+            if (allVerified) // existing variable
             {
-                await NotifyDoctorAllTestsVerified(request);
+                var doctor = await _context.Employees.FindAsync(request.DoctorId);
+                if (doctor != null)
+                {
+                    await _notificationService.CreateAsync(doctor.Id, "Doctor",
+                        $"All tests for request #{testRequestId} have been verified. Please review the results and release them to the patient.",
+                        $"/Doctor/RequestDetails/{testRequestId}");
+                }
+                await NotifyDoctorAllTestsVerified(request); // email (unchanged)
             }
 
             SetSuccess($"Test verified: {testRequestTestType.TestType?.TestName}");
@@ -718,6 +733,14 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 SetError("Review notes are required.");
                 return RedirectToAction(nameof(ProcessTestTypes), new { requestId = testRequestId });
             }
+
+            if (testRequestTestType.TechnicianId.HasValue)
+            {
+                await _notificationService.CreateAsync(testRequestTestType.TechnicianId.Value, "LabTechnician",
+                    $"A test you performed ({testRequestTestType.TestType?.TestName}) on request #{testRequestId} has been returned for review. Notes: {reviewNotes}",
+                    $"/LabTechnician/ProcessTestTypes?requestId={testRequestId}");
+            }
+
 
             testRequestTestType.RequestStatus = RequestStatus.ToBeReviewed;
             testRequestTestType.VerificationNotes = reviewNotes;

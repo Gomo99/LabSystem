@@ -18,16 +18,20 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly LabDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
+        private readonly INotificationService _notificationService;   // ← NEW
 
         // Standardized TempData keys
         private const string SuccessMessageKey = "SuccessMessage";
         private const string ErrorMessageKey = "ErrorMessage";
 
-        public LaboratoryManagerController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
+        // Updated constructor
+        public LaboratoryManagerController(LabDbContext context, IEmailService emailService,
+                                           IPdfReportService pdfService, INotificationService notificationService)
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+            _notificationService = notificationService;
         }
 
         // ======================================================================
@@ -960,6 +964,10 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 $"Temporary Password: {tempPassword}\n\n" +
                 $"Please log in and change your password.");
 
+            await _notificationService.CreateAsync(doctor.Id, "Doctor",
+                $"Welcome, Dr. {doctor.LastName}! Your account has been created. Please log in and explore the NMB-HLabSys platform. If you have any questions, the lab team is here to assist.",
+                "/Doctor/Dashboard");
+
             return RedirectToAction(nameof(Doctors));
         }
 
@@ -1135,6 +1143,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 $"Username (email): {tech.Email}\n" +
                 $"Temporary Password: {tempPassword}\n\n" +
                 $"Please log in and change your password.");
+
+
+            await _notificationService.CreateAsync(tech.Id, "LabTechnician",
+                $"Welcome aboard, {tech.FirstName}! Your lab technician account is now active. You can start processing samples right away. Glad to have you on the team!",
+                "/LabTechnician/Dashboard");
 
             return RedirectToAction(nameof(Technicians));
         }

@@ -14,8 +14,7 @@ namespace LaboratoryTestRequestManagementSystem.Services
     public class NotificationService : INotificationService
     {
         private readonly LabDbContext _context;
-
-        private readonly IHubContext<NotificationHub> _hubContext;   // ← new
+        private readonly IHubContext<NotificationHub> _hubContext;
 
         public NotificationService(LabDbContext context, IHubContext<NotificationHub> hubContext)
         {
@@ -53,23 +52,29 @@ namespace LaboratoryTestRequestManagementSystem.Services
             await _hubContext.Clients.Group(groupName).SendAsync("UpdateUnreadCount", unreadCount);
         }
 
-
-
-
-
         public async Task<int> GetUnreadCountAsync(int userId, string userType)
         {
             return await _context.Notifications
                 .Where(n => n.UserId == userId && n.UserType == userType && !n.IsRead
-                            && n.Status == Status.Active)   // ← added
+                            && n.Status == Status.Active)
                 .CountAsync();
         }
 
         public async Task<List<Notification>> GetNotificationsAsync(int userId, string userType)
         {
             return await _context.Notifications
-                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)   // ← added
+                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)
                 .OrderByDescending(n => n.CreatedDate)
+                .ToListAsync();
+        }
+
+        // NEW METHOD: Get recent notifications for dropdown
+        public async Task<List<Notification>> GetRecentNotificationsAsync(int userId, string userType, int count)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)
+                .OrderByDescending(n => n.CreatedDate)
+                .Take(count)
                 .ToListAsync();
         }
 
@@ -83,7 +88,6 @@ namespace LaboratoryTestRequestManagementSystem.Services
             }
         }
 
-
         public async Task MarkAllAsReadAsync(int userId, string userType)
         {
             var unread = await _context.Notifications
@@ -95,8 +99,6 @@ namespace LaboratoryTestRequestManagementSystem.Services
 
             await _context.SaveChangesAsync();
         }
-
-
 
         public async Task DeleteAsync(int notificationId)
         {
@@ -119,10 +121,5 @@ namespace LaboratoryTestRequestManagementSystem.Services
 
             await _context.SaveChangesAsync();
         }
-
-
-
-
-
     }
 }

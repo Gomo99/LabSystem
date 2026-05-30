@@ -24,12 +24,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         // Standardized TempData keys
         private const string SuccessMessageKey = "SuccessMessage";
         private const string ErrorMessageKey = "ErrorMessage";
-
-        public DoctorController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService)
+        private readonly INotificationService _notificationService;
+        public DoctorController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService, INotificationService notificationService)
         {
             _context = context;
             _emailService = emailService;
             _pdfService = pdfService;
+            _notificationService = notificationService;
         }
 
         // ======================================================================
@@ -60,13 +61,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     Email = p.Email,
                     SouthAfricanIdNumber = p.SouthAfricanIdNumber,
                     CellphoneNumber = p.CellphoneNumber,
-                    IsActive = p.IsActive
+                    IsActive = p.IsActive,
+                    // NEW
+                    RegisteredByDoctorId = p.RegisteredByDoctorId,
+                    RegisteredByDoctorName = p.RegisteredByDoctor != null
+                        ? "Dr. " + p.RegisteredByDoctor.LastName
+                        : "Self"
                 })
                 .ToListAsync();
 
             return View(patients);
         }
-       
+
         #endregion
 
         #region Patient Details
@@ -150,7 +156,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 PasswordHash = HashPassword(tempPassword),
                 IsActive = Status.Active,
                 MustChangePassword = true,
-                FailedLoginAttempts = 0
+                FailedLoginAttempts = 0,
+                // NEW: mark as registered by this doctor
+                RegisteredByDoctorId = GetCurrentDoctorId()
             };
 
             _context.Patients.Add(patient);
@@ -166,7 +174,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             SetSuccess($"Patient {patient.FirstName} {patient.LastName} registered successfully.");
             return RedirectToAction(nameof(Patients));
         }
-
         #endregion
 
         #region Edit Patient
@@ -964,5 +971,85 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
+
+
+
+        #region PDF Access Requests
+
+        public async Task<IActionResult> PendingPdfRequests()
+        {
+            int doctorId = GetCurrentDoctorId();
+            var requests = await _context.ReportAccessRequests
+                .Where(r => r.DoctorId == doctorId && r.Status == AccessRequestStatus.Pending)
+                .Include(r => r.Patient)
+                .Include(r => r.TestRequest)
+                .OrderByDescending(r => r.RequestDate)
+                .Select(r => new PdfAccessRequestViewModel
+                {
+                    Id = r.Id,
+                    PatientName = r.Patient.FirstName + " " + r.Patient.LastName,
+                    RequestDate = r.RequestDate,
+                    TestRequestId = r.TestRequestId,
+                    Urgency = r.TestRequest.Urgency
+                })
+                .ToListAsync();
+
+            return View(requests);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GrantPdfAccess(int requestId)
+        {
+            int doctorId = GetCurrentDoctorId();
+            var accessReq = await _context.ReportAccessRequests
+                .Include(r => r.Patient)
+                .FirstOrDefaultAsync(r => r.Id == requestId && r.DoctorId == doctorId && r.Status == AccessRequestStatus.Pending);
+
+            if (accessReq == null) return NotFound();
+
+            accessReq.Status = AccessRequestStatus.Granted;
+            accessReq.ResponseDate = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            // Notify the patient
+            await _notificationService.CreateAsync(accessReq.PatientId, "Patient",
+                $"Your request to download the PDF for test request #{accessReq.TestRequestId} has been approved.",
+                $"/Patient/RequestDetails/{accessReq.TestRequestId}");
+
+            SetSuccess("Access granted.");
+            return RedirectToAction(nameof(PendingPdfRequests));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DenyPdfAccess(int requestId, string reason)
+        {
+            int doctorId = GetCurrentDoctorId();
+            var accessReq = await _context.ReportAccessRequests
+                .Include(r => r.Patient)
+                .FirstOrDefaultAsync(r => r.Id == requestId && r.DoctorId == doctorId && r.Status == AccessRequestStatus.Pending);
+
+            if (accessReq == null) return NotFound();
+
+            accessReq.Status = AccessRequestStatus.Denied;
+            accessReq.ResponseDate = DateTime.Now;
+            accessReq.DenyReason = reason;
+            await _context.SaveChangesAsync();
+
+            // Notify the patient
+            await _notificationService.CreateAsync(accessReq.PatientId, "Patient",
+                $"Your request to download the PDF for test request #{accessReq.TestRequestId} has been denied. Reason: {reason}",
+                $"/Patient/RequestDetails/{accessReq.TestRequestId}");
+
+            SetSuccess("Access denied.");
+            return RedirectToAction(nameof(PendingPdfRequests));
+        }
+        #endregion
+
+
+
+
+
     }
 }

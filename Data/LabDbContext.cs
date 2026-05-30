@@ -13,7 +13,8 @@ namespace LaboratoryTestRequestManagementSystem.Data
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<UserDevice> UserDevices { get; set; }
-
+        // Data/LabDbContext.cs – inside the class
+        public DbSet<ReportAccessRequest> ReportAccessRequests { get; set; }
         // Medical history lookup tables
         public DbSet<MedicalCondition> MedicalConditions { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
@@ -35,7 +36,8 @@ namespace LaboratoryTestRequestManagementSystem.Data
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
-
+        // Data/LabDbContext.cs (inside the class)
+        public DbSet<ImportedTestResult> ImportedTestResults { get; set; }
         // Junction tables
         public DbSet<TestTypeConsumable> TestTypeConsumables { get; set; }
         public DbSet<TechnicianTestType> TechnicianTestTypes { get; set; }
@@ -226,6 +228,12 @@ namespace LaboratoryTestRequestManagementSystem.Data
                 .WithMany(p => p.PatientAllergies)
                 .HasForeignKey(pa => pa.PatientId);
 
+            modelBuilder.Entity<Patient>()
+    .HasOne(p => p.RegisteredByDoctor)
+    .WithMany()
+    .HasForeignKey(p => p.RegisteredByDoctorId)
+    .OnDelete(DeleteBehavior.Restrict);
+
             // Patient → PatientMedication
             modelBuilder.Entity<PatientMedication>()
                 .HasOne(pm => pm.Patient)
@@ -373,6 +381,26 @@ namespace LaboratoryTestRequestManagementSystem.Data
                 entity.Property(n => n.Message).IsRequired().HasMaxLength(500);
                 entity.Property(n => n.UserType).IsRequired().HasMaxLength(50);
                 entity.Property(n => n.Status).HasDefaultValue(Status.Active);
+            });
+
+
+            modelBuilder.Entity<ImportedTestResult>(entity =>
+            {
+                entity.ToTable("ImportedTestResults");
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Patient)
+                      .WithMany()
+                      .HasForeignKey(e => e.PatientId);
+            });
+
+
+            modelBuilder.Entity<ReportAccessRequest>(entity =>
+            {
+                entity.ToTable("ReportAccessRequests");
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Patient).WithMany().HasForeignKey(e => e.PatientId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Doctor).WithMany().HasForeignKey(e => e.DoctorId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.TestRequest).WithMany().HasForeignKey(e => e.TestRequestId).OnDelete(DeleteBehavior.Restrict);
             });
 
             // ------------------------------------------------------------

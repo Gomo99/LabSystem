@@ -40,6 +40,7 @@
                         <th>Email</th>
                         <th>ID Number</th>
                         <th>Contact</th>
+                        <th>Registered By</th>
                         <th style="width:180px;">Actions</th>
                     </tr>
                 </thead>
@@ -51,6 +52,8 @@
                             <td>@patient.Email</td>
                             <td>@patient.SouthAfricanIdNumber</td>
                             <td>@patient.CellphoneNumber</td>
+                            <td>@patient.RegisteredByDoctorName</td>
+
                             <td>
                                 <div style="display:flex;gap:6px;">
                                     <a asp-action="Details" asp-route-id="@patient.Id" class="btn btn-secondary btn-sm">

@@ -522,7 +522,13 @@
                 <a asp-action="ResultsReport" class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "ResultsReport" ? "active" : "")">
                     <i class="fas fa-file-pdf"></i> Reports
                 </a>
-
+                <div class="nav-section-label">Data Portability</div>
+                <a class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "ExportData" ? "active" : "")" asp-controller="Patient" asp-action="ExportData">
+                    <i class="fas fa-file-export"></i> Export My Data
+                </a>
+                <a class="nav-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "ImportData" ? "active" : "")" asp-controller="Patient" asp-action="ImportData">
+                    <i class="fas fa-file-import"></i> Import Data
+                </a>
 
                 <!-- ⬇️ New Account section -->
                 <div class="nav-section-label">Account</div>

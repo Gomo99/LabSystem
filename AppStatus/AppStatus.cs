@@ -55,6 +55,13 @@
     }
 
 
+    public enum AccessRequestStatus
+    {
+        Pending,
+        Granted,
+        Denied
+    }
+
 
 
 }

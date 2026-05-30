@@ -10,5 +10,8 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
         public string SouthAfricanIdNumber { get; set; } = string.Empty;
         public string CellphoneNumber { get; set; } = string.Empty;
         public Status IsActive { get; set; }
+
+        public int? RegisteredByDoctorId { get; set; }
+        public string RegisteredByDoctorName { get; set; } = "Self";
     }
 }
