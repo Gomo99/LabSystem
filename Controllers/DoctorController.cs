@@ -25,6 +25,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private const string SuccessMessageKey = "SuccessMessage";
         private const string ErrorMessageKey = "ErrorMessage";
         private readonly INotificationService _notificationService;
+
         public DoctorController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService, INotificationService notificationService)
         {
             _context = context;
@@ -62,7 +63,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                     SouthAfricanIdNumber = p.SouthAfricanIdNumber,
                     CellphoneNumber = p.CellphoneNumber,
                     IsActive = p.IsActive,
-                    // NEW
                     RegisteredByDoctorId = p.RegisteredByDoctorId,
                     RegisteredByDoctorName = p.RegisteredByDoctor != null
                         ? "Dr. " + p.RegisteredByDoctor.LastName
@@ -157,7 +157,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 IsActive = Status.Active,
                 MustChangePassword = true,
                 FailedLoginAttempts = 0,
-                // NEW: mark as registered by this doctor
                 RegisteredByDoctorId = GetCurrentDoctorId()
             };
 
@@ -222,7 +221,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (patient == null) return NotFound();
 
-            // Check unique constraints (excluding current patient)
             if (await _context.Patients.AnyAsync(p => p.Email == model.Email && p.Id != model.Id))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address is already registered.");
@@ -235,7 +233,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // Update basic info
             patient.FirstName = model.FirstName;
             patient.LastName = model.LastName;
             patient.SouthAfricanIdNumber = model.SouthAfricanIdNumber;
@@ -244,7 +241,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             patient.Email = model.Email;
             patient.HomeAddress = model.HomeAddress;
 
-            // Update medical history
             await UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
             await UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
             await UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
@@ -257,7 +253,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         private async Task UpdatePatientMedicalHistory(Patient patient, string input, string type)
         {
-            // Clear existing
             if (type == "condition")
                 _context.PatientConditions.RemoveRange(patient.PatientConditions);
             else if (type == "allergy")
@@ -370,7 +365,124 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-        #region Test Request Management
+        #region Create Test Request
+        // ======================================================================
+        //  MISSING FEATURE: Create Test Request
+        // ======================================================================
+
+        [HttpGet]
+        public async Task<IActionResult> CreateTestRequest()
+        {
+            var model = new EditTestRequestViewModel
+            {
+                SelectedTestTypeIds = new List<int>(),
+                Samples = new List<SampleEntryViewModel>()
+            };
+            await PopulateTestRequestDropdowns();
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateTestRequest(EditTestRequestViewModel model)
+        {
+            // --- Validation: at least one test type and one sample ---
+            if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
+            {
+                ModelState.AddModelError("SelectedTestTypeIds", "At least one test type must be selected.");
+                await PopulateTestRequestDropdowns();
+                return View(model);
+            }
+
+            if (model.Samples == null || !model.Samples.Any())
+            {
+                ModelState.AddModelError("Samples", "At least one sample must be provided.");
+                await PopulateTestRequestDropdowns();
+                return View(model);
+            }
+
+            // --- Barcode uniqueness ---
+            var barcodes = model.Samples.Select(s => s.Barcode).ToList();
+            if (barcodes.Distinct().Count() != barcodes.Count)
+            {
+                ModelState.AddModelError("", "Barcodes must be unique within the request.");
+                await PopulateTestRequestDropdowns();
+                return View(model);
+            }
+
+            var existingBarcodes = await _context.Samples
+                .Where(s => barcodes.Contains(s.Barcode))
+                .Select(s => s.Barcode)
+                .ToListAsync();
+            if (existingBarcodes.Any())
+            {
+                ModelState.AddModelError("", $"Barcodes already exist: {string.Join(", ", existingBarcodes)}");
+                await PopulateTestRequestDropdowns();
+                return View(model);
+            }
+
+            if (!ModelState.IsValid)
+            {
+                await PopulateTestRequestDropdowns();
+                return View(model);
+            }
+
+            // --- Create the TestRequest entity ---
+            int doctorId = GetCurrentDoctorId();
+            var testRequest = new TestRequest
+            {
+                PatientId = model.PatientId,
+                DoctorId = doctorId,
+                RequestDate = DateTime.Now,
+                Urgency = model.Urgency,
+                ClinicalNotes = model.ClinicalNotes,
+                RequestStatus = RequestStatus.Submitted,
+                RecordStatus = Status.Active
+            };
+
+            // Add test types
+            foreach (var ttId in model.SelectedTestTypeIds)
+            {
+                testRequest.TestRequestTestTypes.Add(new TestRequestTestType
+                {
+                    TestTypeId = ttId,
+                    RequestStatus = RequestStatus.Submitted
+                });
+            }
+
+            // Add samples
+            foreach (var sampleVm in model.Samples)
+            {
+                testRequest.Samples.Add(new Sample
+                {
+                    Barcode = sampleVm.Barcode,
+                    SampleTypeId = sampleVm.SampleTypeId,
+                    CollectedDate = DateTime.Now
+                });
+            }
+
+            _context.TestRequests.Add(testRequest);
+            await _context.SaveChangesAsync();
+
+            // --- Notify patient via email ---
+            var patient = await _context.Patients.FindAsync(model.PatientId);
+            if (patient != null)
+            {
+                string subject = "New Test Request Submitted";
+                string body = $"Dear {patient.FirstName},\n\n" +
+                              $"A new test request has been submitted by your doctor on {testRequest.RequestDate:dd/MM/yyyy}.\n" +
+                              $"You can track its progress in the patient portal.\n\n" +
+                              $"Thank you.";
+
+                await _emailService.SendEmailAsync(patient.Email, subject, body);
+            }
+
+            SetSuccess("Test request created successfully.");
+            return RedirectToAction(nameof(RequestDetails), new { id = testRequest.Id });
+        }
+        #endregion
+
+        #region Test Request Management (list, details, edit, delete, restore)
 
         public async Task<IActionResult> TestRequests()
         {
@@ -972,8 +1084,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
-
-
         #region PDF Access Requests
 
         public async Task<IActionResult> PendingPdfRequests()
@@ -1012,7 +1122,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             accessReq.ResponseDate = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            // Notify the patient
             await _notificationService.CreateAsync(accessReq.PatientId, "Patient",
                 $"Your request to download the PDF for test request #{accessReq.TestRequestId} has been approved.",
                 $"/Patient/RequestDetails/{accessReq.TestRequestId}");
@@ -1037,7 +1146,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             accessReq.DenyReason = reason;
             await _context.SaveChangesAsync();
 
-            // Notify the patient
             await _notificationService.CreateAsync(accessReq.PatientId, "Patient",
                 $"Your request to download the PDF for test request #{accessReq.TestRequestId} has been denied. Reason: {reason}",
                 $"/Patient/RequestDetails/{accessReq.TestRequestId}");
@@ -1047,9 +1155,46 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
         #endregion
 
+        #region Required Sample Types (Requirement 2c)
+        [HttpGet]
+        public async Task<IActionResult> GetRequiredSampleTypes(string testTypeIds)
+        {
+            if (string.IsNullOrWhiteSpace(testTypeIds))
+                return Json(new List<object>());
 
+            var ids = testTypeIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                 .Select(s => int.TryParse(s, out int id) ? id : (int?)null)
+                                 .Where(id => id.HasValue)
+                                 .Select(id => id.Value)
+                                 .Distinct()
+                                 .ToList();
 
+            if (!ids.Any())
+                return Json(new List<object>());
 
+            var sampleTypes = await _context.TestTypes
+                .Where(tt => ids.Contains(tt.Id) && tt.Status == Status.Active)
+                .Include(tt => tt.SampleType)
+                .Select(tt => new {
+                    TestTypeId = tt.Id,
+                    TestTypeName = tt.TestName,
+                    SampleTypeId = tt.SampleTypeId,
+                    SampleTypeName = tt.SampleType.Name
+                })
+                .ToListAsync();
 
+            // Group by sample type to avoid duplicates
+            var required = sampleTypes
+                .GroupBy(x => x.SampleTypeId)
+                .Select(g => new {
+                    SampleTypeId = g.Key,
+                    SampleTypeName = g.First().SampleTypeName,
+                    RequiredByTests = g.Select(x => x.TestTypeName).ToList()
+                })
+                .ToList();
+
+            return Json(required);
+        }
+        #endregion
     }
 }

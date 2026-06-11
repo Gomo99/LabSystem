@@ -196,6 +196,55 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return View(model);
         }
 
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelRequest(int id, string cancellationReason)
+        {
+            if (string.IsNullOrWhiteSpace(cancellationReason))
+            {
+                SetError("Cancellation reason is required.");
+                return RedirectToAction(nameof(PendingTestRequests));
+            }
+
+            var request = await _context.TestRequests
+                .Include(tr => tr.Doctor)
+                .Include(tr => tr.Patient)
+                .FirstOrDefaultAsync(tr => tr.Id == id && tr.RecordStatus == Status.Active);
+
+            if (request == null) return NotFound();
+
+            if (request.RequestStatus != RequestStatus.Submitted && request.RequestStatus != RequestStatus.SamplesReceived)
+            {
+                SetError("Cannot cancel a request that is already in progress or completed.");
+                return RedirectToAction(nameof(PendingTestRequests));
+            }
+
+            request.RequestStatus = RequestStatus.Cancelled;
+            request.CancellationReason = cancellationReason;
+            request.DateCancelled = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            // Notify doctor
+            if (request.Doctor != null)
+            {
+                await _notificationService.CreateAsync(request.Doctor.Id, "Doctor",
+                    $"Test request #{request.Id} for patient {request.Patient?.FirstName} has been cancelled by the lab. Reason: {cancellationReason}",
+                    $"/Doctor/RequestDetails/{request.Id}");
+
+                // Also send email
+                await _emailService.SendEmailAsync(request.Doctor.Email,
+                    "Test Request Cancelled by Lab",
+                    $"Dear Dr. {request.Doctor.LastName},\n\n" +
+                    $"Test request #{request.Id} (Patient: {request.Patient?.FirstName} {request.Patient?.LastName}) " +
+                    $"has been cancelled by the laboratory.\nReason: {cancellationReason}");
+            }
+
+            SetSuccess("Test request cancelled and doctor notified.");
+            return RedirectToAction(nameof(PendingTestRequests));
+        }
+
         #region Receive Samples
 
         // List test requests with status 'Submitted' (samples not yet received)
@@ -997,9 +1046,16 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             string body = $"Dear Dr. {doctor.LastName},\n\n" +
                           $"All tests for request #{request.Id} (Patient: {request.Patient?.FirstName} {request.Patient?.LastName}) " +
                           $"have been verified and are ready for your review.\n\n" +
-                          $"Please log in to the system to view and release the results.";
+                          $"Please find the results attached.";
 
-            await _emailService.SendEmailAsync(doctor.Email, subject, body);
+            // Use your updated email service that supports attachments
+            await _emailService.SendEmailWithAttachmentAsync(
+                doctor.Email,
+                subject,
+                body,
+                pdfBytes,
+                $"TestResults_Request{request.Id}.pdf"
+            );
         }
 
         private int GetCurrentTechnicianId()

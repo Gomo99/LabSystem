@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace LaboratoryTestRequestManagementSystem.Controllers
 {
@@ -54,6 +55,87 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return int.TryParse(userIdClaim, out int id) ? id : 0;
         }
+
+
+        [HttpGet]
+        public IActionResult Register()
+        {
+            // If user is already logged in, redirect to dashboard
+            if (User.Identity?.IsAuthenticated == true)
+                return RedirectToAction("Dashboard");
+            return View(new PatientRegistrationViewModel());
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(PatientRegistrationViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            // --- Uniqueness checks ---
+            bool emailExists = await _context.Patients.AnyAsync(p => p.Email == model.Email);
+            if (emailExists)
+            {
+                ModelState.AddModelError(nameof(model.Email), "Email address is already registered.");
+                return View(model);
+            }
+
+            bool idExists = await _context.Patients.AnyAsync(p => p.SouthAfricanIdNumber == model.SouthAfricanIdNumber);
+            if (idExists)
+            {
+                ModelState.AddModelError(nameof(model.SouthAfricanIdNumber), "ID number is already registered.");
+                return View(model);
+            }
+
+            // --- Password complexity ---
+            if (!IsPasswordComplex(model.Password))
+            {
+                ModelState.AddModelError(nameof(model.Password),
+                    "Password must be at least 8 characters and contain an uppercase letter, a number, and a special character.");
+                return View(model);
+            }
+
+            // --- Create patient ---
+            var patient = new Patient
+            {
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                SouthAfricanIdNumber = model.SouthAfricanIdNumber,
+                DateOfBirth = model.DateOfBirth,
+                CellphoneNumber = model.CellphoneNumber,
+                Email = model.Email,
+                HomeAddress = model.HomeAddress,
+                PasswordHash = HashPassword(model.Password),
+                IsActive = Status.Active,
+                MustChangePassword = false,     // they chose their own password
+                FailedLoginAttempts = 0
+            };
+
+            _context.Patients.Add(patient);
+            await _context.SaveChangesAsync();
+
+            // --- Optionally send a welcome email ---
+            await _emailService.SendEmailAsync(patient.Email, "Welcome to NMB-HLabSys",
+                $"Dear {patient.FirstName},\n\nYour account has been created successfully.\nYou can now log in and manage your health information.");
+
+            SetSuccess("Registration successful. Please log in.");
+            return RedirectToAction("Login", "Account");
+        }
+
+
+        private static bool IsPasswordComplex(string password)
+        {
+            if (string.IsNullOrEmpty(password) || password.Length < 8) return false;
+            bool hasUpper = Regex.IsMatch(password, @"[A-Z]");
+            bool hasDigit = Regex.IsMatch(password, @"\d");
+            bool hasSpecial = Regex.IsMatch(password, @"[^a-zA-Z0-9\s]");
+            return hasUpper && hasDigit && hasSpecial;
+        }
+
+        private static string HashPassword(string password) => BCrypt.Net.BCrypt.HashPassword(password);
+
 
         #region Profile Management
 

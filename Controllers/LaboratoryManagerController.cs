@@ -76,6 +76,15 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
+            // ✅ Uniqueness check
+            bool nameExists = await _context.TestCategories
+                .AnyAsync(tc => tc.CategoryName == model.CategoryName);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.CategoryName), "A test category with this name already exists.");
+                return View(model);
+            }
+
             var category = new TestCategory
             {
                 CategoryName = model.CategoryName,
@@ -86,6 +95,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(TestCategories));
         }
+
 
         [HttpGet]
         public async Task<IActionResult> EditTestCategory(int id)
@@ -107,8 +117,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         public async Task<IActionResult> EditTestCategory(TestCategoryViewModel model)
         {
             if (!ModelState.IsValid) return View(model);
+
             var category = await _context.TestCategories.FindAsync(model.Id);
             if (category == null) return NotFound();
+
+            // ✅ Uniqueness check (exclude self)
+            bool nameExists = await _context.TestCategories
+                .AnyAsync(tc => tc.CategoryName == model.CategoryName && tc.Id != model.Id);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.CategoryName), "A test category with this name already exists.");
+                return View(model);
+            }
 
             category.CategoryName = model.CategoryName;
             category.Description = model.Description;
@@ -154,6 +174,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .Include(t => t.TestCategory)
                 .Include(t => t.SampleType)
                 .Include(t => t.TestTypeConsumables).ThenInclude(tc => tc.Consumable)
+                .Include(t => t.TechnicianTestTypes).ThenInclude(ttt => ttt.Technician)   // ← NEW: shows assigned technicians
                 .ToListAsync();
             return View(testTypes);
         }
@@ -165,9 +186,12 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .Include(t => t.TestCategory)
                 .Include(t => t.SampleType)
                 .Include(t => t.TestTypeConsumables).ThenInclude(tc => tc.Consumable)
+                .Include(t => t.TechnicianTestTypes).ThenInclude(ttt => ttt.Technician)   // ← NEW
                 .ToListAsync();
             return View(testTypes);
         }
+
+       
 
         [HttpGet]
         public async Task<IActionResult> CreateTestType()
@@ -182,6 +206,16 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         {
             if (!ModelState.IsValid)
             {
+                await PopulateDropdowns(activeOnly: true);
+                return View(model);
+            }
+
+            // ✅ Uniqueness check for test name
+            bool nameExists = await _context.TestTypes
+                .AnyAsync(t => t.TestName == model.TestName);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.TestName), "A test type with this name already exists.");
                 await PopulateDropdowns(activeOnly: true);
                 return View(model);
             }
@@ -207,6 +241,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(TestTypes));
         }
+
+
+
 
         [HttpGet]
         public async Task<IActionResult> EditTestType(int id)
@@ -246,6 +283,16 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .Include(t => t.TestTypeConsumables)
                 .FirstOrDefaultAsync(t => t.Id == model.Id);
             if (testType == null) return NotFound();
+
+            // ✅ Uniqueness check (exclude self)
+            bool nameExists = await _context.TestTypes
+                .AnyAsync(t => t.TestName == model.TestName && t.Id != model.Id);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.TestName), "A test type with this name already exists.");
+                await PopulateDropdowns(activeOnly: true);
+                return View(model);
+            }
 
             testType.TestName = model.TestName;
             testType.TestCategoryId = model.TestCategoryId;
@@ -352,6 +399,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
+            // ✅ Uniqueness check for consumable name
+            bool nameExists = await _context.Consumables
+                .AnyAsync(c => c.ConsumableName == model.ConsumableName);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.ConsumableName), "A consumable with this name already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
+
             var consumable = new Consumable
             {
                 ConsumableName = model.ConsumableName,
@@ -399,6 +458,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             var consumable = await _context.Consumables.FindAsync(model.Id);
             if (consumable == null) return NotFound();
+
+            // ✅ Uniqueness check (exclude self)
+            bool nameExists = await _context.Consumables
+                .AnyAsync(c => c.ConsumableName == model.ConsumableName && c.Id != model.Id);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.ConsumableName), "A consumable with this name already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
 
             consumable.ConsumableName = model.ConsumableName;
             consumable.ReorderLevel = model.ReorderLevel;
@@ -480,6 +551,29 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateSupplier(SupplierViewModel model)
         {
+            bool nameExists = await _context.Suppliers
+                .AnyAsync(c => c.SupplierName == model.SupplierName);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.SupplierName), "A supplier with this name already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
+
+            bool emailExists = await _context.Suppliers
+                .AnyAsync(c => c.EmailAddress == model.EmailAddress);
+            if (emailExists)
+            {
+                ModelState.AddModelError(nameof(model.EmailAddress), "A supplier with this email address already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
+
+
             if (!ModelState.IsValid) return View(model);
 
             var supplier = new Supplier
@@ -514,6 +608,30 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditSupplier(SupplierViewModel model)
         {
+
+            bool nameExists = await _context.Suppliers
+                .AnyAsync(c => c.SupplierName == model.SupplierName);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.SupplierName), "A supplier with this name already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
+
+            bool emailExists = await _context.Suppliers
+                .AnyAsync(c => c.EmailAddress == model.EmailAddress);
+            if (emailExists)
+            {
+                ModelState.AddModelError(nameof(model.EmailAddress), "A supplier with this email address already exists.");
+                ViewBag.Suppliers = new SelectList(
+                    await _context.Suppliers.Where(s => s.Status == Status.Active).ToListAsync(),
+                    "Id", "SupplierName");
+                return View(model);
+            }
+
+
             if (!ModelState.IsValid) return View(model);
 
             var supplier = await _context.Suppliers.FindAsync(model.Id);
@@ -562,8 +680,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var lowStockItems = await _context.Consumables
                 .Include(c => c.Supplier)
                 .Where(c => c.Status == Status.Active)
-                .Where(c => c.QuantityOnHand <= c.ReorderLevel * (1 + (decimal)threshold)
-                            && c.QuantityOnHand <= c.ReorderLevel)
+                .Where(c => c.QuantityOnHand <= c.ReorderLevel * (1 + threshold))
                 .ToListAsync();
             return View(lowStockItems);
         }
@@ -574,7 +691,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             var lowStock = await _context.Consumables
                 .Include(c => c.Supplier)
                 .Where(c => c.Status == Status.Active)
-                .Where(c => c.QuantityOnHand <= c.ReorderLevel)
+                .Where(c => c.QuantityOnHand <= c.ReorderLevel * 1.1m)   // consistent with alert
                 .GroupBy(c => c.Supplier)
                 .ToListAsync();
 
@@ -638,6 +755,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return RedirectToAction(nameof(Orders));
         }
 
+
         public async Task<IActionResult> Orders()
         {
             var orders = await _context.Orders
@@ -680,13 +798,17 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             }
 
             if (order.OrderItems.All(i => i.OrderItemStatus == OrderItemStatus.Received))
+            {
                 order.OrderStatus = OrderStatus.Complete;
+                order.DateCompleted = DateTime.Now;                 // ✅ capture completion date
+            }
             else if (order.OrderItems.Any(i => i.OrderItemStatus == OrderItemStatus.Received))
                 order.OrderStatus = OrderStatus.PartiallyComplete;
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Orders));
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
