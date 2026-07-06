@@ -69,15 +69,15 @@
                             <td>
                                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                     <a asp-action="EditConsumable" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
-                                        <i class="fas fa-pen"></i>
+                                        <i class="fas fa-pen"></i>Edit
                                     </a>
                                     <button type="button" class="btn btn-ghost btn-sm" onclick="openAdjustModal(@item.Id, '@item.ConsumableName', @item.QuantityOnHand)">
-                                        <i class="fas fa-sliders"></i>
+                                        <i class="fas fa-sliders"></i> Adjust
                                     </button>
                                     <form asp-action="DeleteConsumable" method="post" style="display:inline;">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this consumable?')">
-                                            <i class="fas fa-trash"></i>
+                                            <i class="fas fa-trash"></i>Delete
                                         </button>
                                     </form>
                                 </div>

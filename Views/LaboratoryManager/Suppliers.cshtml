@@ -51,12 +51,12 @@
                             <td>
                                 <div style="display:flex;gap:6px;">
                                     <a asp-action="EditSupplier" asp-route-id="@item.Id" class="btn btn-secondary btn-sm">
-                                        <i class="fas fa-pen"></i>
+                                        <i class="fas fa-pen"></i>Edit
                                     </a>
                                     <form asp-action="DeleteSupplier" method="post" style="display:inline;">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this supplier?')">
-                                            <i class="fas fa-trash"></i>
+                                            <i class="fas fa-trash"></i>Delete
                                         </button>
                                     </form>
                                 </div>

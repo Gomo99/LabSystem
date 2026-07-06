@@ -1,12 +1,209 @@
 ﻿using LaboratoryTestRequestManagementSystem.AppStatus;
 using LaboratoryTestRequestManagementSystem.Data;
+using LaboratoryTestRequestManagementSystem.Hubs;
+using LaboratoryTestRequestManagementSystem.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using OtpNet;
+using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Net;
+using System.Net.Mail;
+using System.Text.Json;
 
 namespace LaboratoryTestRequestManagementSystem.Services
 {
+    public class EmailService : IEmailService
+    {
+        private readonly IConfiguration _config;
+
+        public EmailService(IConfiguration config)
+        {
+            _config = config;
+        }
+
+        // Existing methods (unchanged)
+        public async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
+        {
+            await SendAsync(toEmail, subject, htmlBody);
+        }
+
+        public async Task SendAsync(string toEmail, string subject, string htmlBody)
+        {
+            await SendWithAttachmentAsync(toEmail, subject, htmlBody, null, null);
+        }
+
+        // New method with attachment
+        public async Task SendEmailWithAttachmentAsync(string toEmail, string subject, string body, byte[] attachmentBytes, string attachmentFileName)
+        {
+            await SendWithAttachmentAsync(toEmail, subject, body, attachmentBytes, attachmentFileName);
+        }
+
+        private async Task SendWithAttachmentAsync(string toEmail, string subject, string body, byte[]? attachmentBytes, string? attachmentFileName)
+        {
+            try
+            {
+                var smtp = _config["Email:Host"];
+                var portStr = _config["Email:Port"];
+                var user = _config["Email:Username"];
+                var pass = _config["Email:Password"];
+                var from = _config["Email:SenderEmail"];
+
+                if (string.IsNullOrEmpty(smtp)) throw new Exception("Email Host is not configured.");
+                if (string.IsNullOrEmpty(portStr) || !int.TryParse(portStr, out int port)) throw new Exception("Email Port is not configured correctly.");
+                if (string.IsNullOrEmpty(user)) throw new Exception("Email Username is missing.");
+                if (string.IsNullOrEmpty(pass)) throw new Exception("Email Password is missing.");
+                if (string.IsNullOrEmpty(from)) throw new Exception("Email Sender address is missing.");
+
+                using var client = new SmtpClient(smtp, port)
+                {
+                    Credentials = new NetworkCredential(user, pass),
+                    EnableSsl = true
+                };
+
+                var message = new MailMessage(from, toEmail, subject, body)
+                {
+                    IsBodyHtml = true
+                };
+
+                // Attach file if provided
+                if (attachmentBytes != null && attachmentBytes.Length > 0 && !string.IsNullOrWhiteSpace(attachmentFileName))
+                {
+                    var stream = new MemoryStream(attachmentBytes);
+                    var attachment = new Attachment(stream, attachmentFileName, "application/pdf");
+                    message.Attachments.Add(attachment);
+                }
+
+                await client.SendMailAsync(message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("EMAIL ERROR: " + ex.Message);
+                throw;
+            }
+        }
+    }
+
+
+
+    public class NotificationService : INotificationService
+    {
+        private readonly LabDbContext _context;
+        private readonly IHubContext<NotificationHub> _hubContext;
+
+        public NotificationService(LabDbContext context, IHubContext<NotificationHub> hubContext)
+        {
+            _context = context;
+            _hubContext = hubContext;
+        }
+
+        public async Task CreateAsync(int userId, string userType, string message, string link = null)
+        {
+            var notification = new Notification
+            {
+                UserId = userId,
+                UserType = userType,
+                Message = message,
+                Link = link,
+                IsRead = false,
+                CreatedDate = DateTime.Now,
+                Status = Status.Active
+            };
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
+            // Broadcast the new notification to the target user's group
+            string groupName = $"{userType}-{userId}";
+            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", new
+            {
+                id = notification.Id,
+                message = notification.Message,
+                link = notification.Link,
+                createdDate = notification.CreatedDate.ToString("g")
+            });
+
+            // Also push the updated unread count
+            int unreadCount = await GetUnreadCountAsync(userId, userType);
+            await _hubContext.Clients.Group(groupName).SendAsync("UpdateUnreadCount", unreadCount);
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId, string userType)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && !n.IsRead
+                            && n.Status == Status.Active)
+                .CountAsync();
+        }
+
+        public async Task<List<Notification>> GetNotificationsAsync(int userId, string userType)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)
+                .OrderByDescending(n => n.CreatedDate)
+                .ToListAsync();
+        }
+
+        // NEW METHOD: Get recent notifications for dropdown
+        public async Task<List<Notification>> GetRecentNotificationsAsync(int userId, string userType, int count)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)
+                .OrderByDescending(n => n.CreatedDate)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        public async Task MarkAsReadAsync(int notificationId)
+        {
+            var notification = await _context.Notifications.FindAsync(notificationId);
+            if (notification != null)
+            {
+                notification.IsRead = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task MarkAllAsReadAsync(int userId, string userType)
+        {
+            var unread = await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && !n.IsRead)
+                .ToListAsync();
+
+            foreach (var n in unread)
+                n.IsRead = true;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(int notificationId)
+        {
+            var notification = await _context.Notifications.FindAsync(notificationId);
+            if (notification != null)
+            {
+                notification.Status = Status.Inactive;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ClearAllAsync(int userId, string userType)
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == userId && n.UserType == userType && n.Status == Status.Active)
+                .ToListAsync();
+
+            foreach (var n in notifications)
+                n.Status = Status.Inactive;
+
+            await _context.SaveChangesAsync();
+        }
+
+
+
+    }
+
+
     public class PdfReportService : IPdfReportService
     {
         private readonly LabDbContext _context;
@@ -525,4 +722,91 @@ namespace LaboratoryTestRequestManagementSystem.Services
 
         #endregion
     }
+
+
+
+
+    public class TwoFactorService : ITwoFactorService
+    {
+        public string GenerateSecretKey()
+        {
+            var key = KeyGeneration.GenerateRandomKey(20);
+            return Base32Encoding.ToString(key);
+        }
+
+        public string GetQrCodeUri(string secretKey, string email, string issuer)
+        {
+            // otpauth://totp/{issuer}:{email}?secret={key}&issuer={issuer}
+            var encodedIssuer = Uri.EscapeDataString(issuer);
+            var encodedEmail = Uri.EscapeDataString(email);
+            return $"otpauth://totp/{encodedIssuer}:{encodedEmail}" +
+                   $"?secret={secretKey}&issuer={encodedIssuer}&digits=6&period=30";
+        }
+
+        public byte[] GenerateQrCodePng(string uri)
+        {
+            using var qrGenerator = new QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(uri, QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new PngByteQRCode(qrCodeData);
+            return qrCode.GetGraphic(6);
+        }
+
+        public bool VerifyCode(string secretKey, string code)
+        {
+            try
+            {
+                var keyBytes = Base32Encoding.ToBytes(secretKey);
+                var totp = new Totp(keyBytes);
+
+                // Allow 1 step of clock drift in each direction
+                return totp.VerifyTotp(
+                    code.Trim(),
+                    out _,
+                    new VerificationWindow(previous: 1, future: 1));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public List<string> GenerateRecoveryCodes()
+        {
+            var rng = new Random();
+            var codes = new List<string>();
+
+            for (int i = 0; i < 8; i++)
+            {
+                // Format: XXXX-XXXX  (8 hex chars)
+                var part1 = rng.Next(0x1000, 0xFFFF).ToString("X4");
+                var part2 = rng.Next(0x1000, 0xFFFF).ToString("X4");
+                codes.Add($"{part1}-{part2}");
+            }
+
+            return codes;
+        }
+
+        public bool VerifyRecoveryCode(string storedJson, string inputCode,
+                                        out string updatedJson)
+        {
+            updatedJson = storedJson;
+
+            var codes = JsonSerializer.Deserialize<List<string>>(storedJson)
+                        ?? new List<string>();
+
+            // Recovery codes are stored as BCrypt hashes
+            var matched = codes.FirstOrDefault(c =>
+                BCrypt.Net.BCrypt.Verify(inputCode.Trim().ToUpper(), c));
+
+            if (matched == null) return false;
+
+            // Remove the used code (one-time use)
+            codes.Remove(matched);
+            updatedJson = JsonSerializer.Serialize(codes);
+            return true;
+        }
+    }
+
+
+
 }

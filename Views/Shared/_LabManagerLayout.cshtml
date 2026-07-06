@@ -757,6 +757,14 @@
                 </button>
             </form>
 
+            <form asp-controller="Account" asp-action="Logout" method="post"
+                  onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="nav-item" style="width:100%; background:none; border:none; font-family:'Outfit',sans-serif; font-size:.84rem; font-weight:500; color:var(--muted); text-align:left; cursor:pointer;">
+                    <i class="fas fa-user-slash"></i> Sign out
+                </button>
+            </form>
+
     </nav>
 
     <div class="sidebar-footer">
@@ -766,12 +774,7 @@
                 <div class="u-name">@firstName @lastName</div>
                 <div class="u-role">Lab Manager</div>
             </div>
-            <form asp-controller="Account" asp-action="Logout" method="post" style="margin:0;">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="logout-btn" title="Sign Out">
-                    <i class="fas fa-right-from-bracket"></i>
-                </button>
-            </form>
+            
         </div>
     </div>
 </aside>

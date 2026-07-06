@@ -791,23 +791,38 @@
             </a>
 
             <!-- ⬇️ New Account section -->
-            <div class="nav-section-label">Account</div>
-            <a class="@Nav("/Account/ChangePassword")" asp-controller="Account" asp-action="ChangePassword">
-                <i class="fas fa-key"></i> Change Password
-            </a>
-            <a class="@Nav("/Account/ChangeUsername")" asp-controller="Account" asp-action="ChangeUsername">
-                <i class="fas fa-at"></i> Change Username
-            </a>
-            <a class="@Nav("/Account/EditProfile")" asp-controller="Account" asp-action="EditProfile">
-                <i class="fas fa-user-pen"></i> Edit Profile
-            </a>
-            <form asp-controller="Account" asp-action="DeactivateAccount" method="post"
-                  onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="nav-item" style="width:100%; background:none; border:none; font-family:'Outfit',sans-serif; font-size:.84rem; font-weight:500; color:var(--muted); text-align:left; cursor:pointer;">
-                    <i class="fas fa-user-slash"></i> Deactivate Account
-                </button>
-            </form>
+            <div class="topbar-actions">
+                <div class="dropdown" style="position:relative;">
+                    <button class="topbar-btn" type="button" id="userDropdownBtn" onclick="toggleDropdown()" style="display:flex;align-items:center;gap:6px;">
+                        <i class="fas fa-user-circle"></i>
+                        <span style="font-size:.8rem;">@firstName</span>
+                        <i class="fas fa-chevron-down" style="font-size:.7rem;"></i>
+                    </button>
+                    <div id="userDropdown" class="dropdown-menu" style="display:none;position:absolute;right:0;top:50px;background:var(--navy-mid);border:1px solid var(--border);border-radius:12px;padding:8px 0;min-width:180px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5);">
+                        <a asp-action="EditProfile" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
+                            <i class="fas fa-pen"></i> Edit Profile
+                        </a>
+                        <a asp-action="ChangePassword" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
+                            <i class="fas fa-lock"></i> Change Password
+                        </a>
+                        <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
+                        <form asp-action="DeactivateAccount" asp-controller="Account" method="post" onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--danger);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
+                                <i class="fas fa-user-slash"></i> Deactivate Account
+                            </button>
+                        </form>
+                        <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
+                        <form asp-action="Logout" asp-controller="Account" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
+                                <i class="fas fa-right-from-bracket"></i> Sign Out
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </nav>
 
         <div class="sidebar-footer">
@@ -819,48 +834,13 @@
                 </div>
 
 
-                <form asp-controller="Account" asp-action="Logout" method="post" style="margin:0;">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="logout-btn" title="Sign Out">
-                        <i class="fas fa-right-from-bracket"></i>
-                    </button>
-                </form>
+               
             </div>
         </div>
     </aside>
 
     <!-- Replace the existing .topbar-actions div with this -->
-    <div class="topbar-actions">
-        <div class="dropdown" style="position:relative;">
-            <button class="topbar-btn" type="button" id="userDropdownBtn" onclick="toggleDropdown()" style="display:flex;align-items:center;gap:6px;">
-                <i class="fas fa-user-circle"></i>
-                <span style="font-size:.8rem;">@firstName</span>
-                <i class="fas fa-chevron-down" style="font-size:.7rem;"></i>
-            </button>
-            <div id="userDropdown" class="dropdown-menu" style="display:none;position:absolute;right:0;top:50px;background:var(--navy-mid);border:1px solid var(--border);border-radius:12px;padding:8px 0;min-width:180px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5);">
-                <a asp-action="EditProfile" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
-                    <i class="fas fa-pen"></i> Edit Profile
-                </a>
-                <a asp-action="ChangePassword" asp-controller="Account" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);text-decoration:none;transition:background .2s;">
-                    <i class="fas fa-lock"></i> Change Password
-                </a>
-                <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
-                <form asp-action="DeactivateAccount" asp-controller="Account" method="post" onsubmit="return confirm('Are you sure you want to deactivate your account? You will be logged out and unable to sign in until an administrator reactivates you.');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--danger);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
-                        <i class="fas fa-user-slash"></i> Deactivate Account
-                    </button>
-                </form>
-                <div style="border-top:1px solid var(--border-soft);margin:6px 0;"></div>
-                <form asp-action="Logout" asp-controller="Account" method="post">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="dropdown-item" style="display:flex;align-items:center;gap:10px;padding:10px 16px;color:var(--muted);background:none;border:none;width:100%;text-align:left;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.84rem;">
-                        <i class="fas fa-right-from-bracket"></i> Sign Out
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
+   
 
     <!-- MAIN -->
     <main class="main-content">

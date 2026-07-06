@@ -41,10 +41,10 @@
                         <td>@(doc.ContactNumber ?? "—")</td>
                         <td>
                             <div style="display:flex;gap:6px;">
-                                <a asp-action="EditDoctor" asp-route-id="@doc.Id" class="btn btn-secondary btn-sm"><i class="fas fa-pen"></i></a>
+                                <a asp-action="EditDoctor" asp-route-id="@doc.Id" class="btn btn-secondary btn-sm"><i class="fas fa-pen"></i></a>Edit
                                 <form asp-action="DeleteDoctor" method="post">
                                     <input type="hidden" name="id" value="@doc.Id" />
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this doctor?')"><i class="fas fa-trash"></i></button>
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate this doctor?')"><i class="fas fa-trash"></i></button>Delete
                                 </form>
                             </div>
                         </td>
