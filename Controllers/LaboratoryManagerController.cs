@@ -141,14 +141,27 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteTestCategory(int id)
         {
+            // Guard: don't let a manager silently orphan test types that reference this category
+            bool inUse = await _context.TestTypes
+                .AnyAsync(t => t.TestCategoryId == id && t.Status == Status.Active);
+            if (inUse)
+            {
+                SetError("This test category is used by one or more active test types and cannot be deactivated.");
+                return RedirectToAction(nameof(TestCategories));
+            }
+
             var category = await _context.TestCategories.FindAsync(id);
             if (category != null)
             {
                 category.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Test category deactivated successfully.");
             }
             return RedirectToAction(nameof(TestCategories));
         }
+
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -484,14 +497,38 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConsumable(int id)
         {
+            // Guard 1: don't orphan active test types that require this consumable
+            bool usedByTestType = await _context.TestTypeConsumables
+                .AnyAsync(tc => tc.ConsumableId == id && tc.TestType.Status == Status.Active);
+            if (usedByTestType)
+            {
+                SetError("This consumable is used by one or more active test types and cannot be deactivated.");
+                return RedirectToAction(nameof(Consumables));
+            }
+
+            // Guard 2: don't deactivate a consumable that's part of an order still being processed
+            bool onOpenOrder = await _context.OrderItems
+                .AnyAsync(oi => oi.ConsumableId == id
+                             && oi.Status == Status.Active
+                             && oi.OrderItemStatus == OrderItemStatus.Ordered);
+            if (onOpenOrder)
+            {
+                SetError("This consumable appears on one or more outstanding orders and cannot be deactivated until those orders are received or cancelled.");
+                return RedirectToAction(nameof(Consumables));
+            }
+
             var consumable = await _context.Consumables.FindAsync(id);
             if (consumable != null)
             {
                 consumable.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Consumable deactivated successfully.");
             }
             return RedirectToAction(nameof(Consumables));
         }
+
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -510,19 +547,57 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdjustStock(StockAdjustmentViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                var errors = string.Join(" ", ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage));
+                SetError(string.IsNullOrWhiteSpace(errors) ? "Invalid stock adjustment." : errors);
+                return RedirectToAction(nameof(Consumables));
+            }
+
             var consumable = await _context.Consumables
                 .FirstOrDefaultAsync(c => c.Id == model.ConsumableId && c.Status == Status.Active);
-            if (consumable == null) return NotFound();
+            if (consumable == null)
+            {
+                SetError("Consumable not found or is inactive.");
+                return RedirectToAction(nameof(Consumables));
+            }
+
+            int previousQuantity = consumable.QuantityOnHand;
 
             switch (model.AdjustmentType)
             {
-                case "Increase": consumable.QuantityOnHand += model.Quantity; break;
-                case "Decrease": consumable.QuantityOnHand = Math.Max(0, consumable.QuantityOnHand - model.Quantity); break;
-                case "Set": consumable.QuantityOnHand = model.Quantity; break;
+                case "Increase":
+                    consumable.QuantityOnHand += model.Quantity;
+                    break;
+
+                case "Decrease":
+                    if (model.Quantity > consumable.QuantityOnHand)
+                    {
+                        SetError($"Cannot decrease by {model.Quantity}. Only {consumable.QuantityOnHand} units are currently on hand.");
+                        return RedirectToAction(nameof(Consumables));
+                    }
+                    consumable.QuantityOnHand -= model.Quantity;
+                    break;
+
+                case "Set":
+                    consumable.QuantityOnHand = model.Quantity;
+                    break;
+
+                default:
+                    SetError("Unrecognized adjustment type.");
+                    return RedirectToAction(nameof(Consumables));
             }
+
             await _context.SaveChangesAsync();
+
+            SetSuccess(
+                $"Stock for '{consumable.ConsumableName}' adjusted from {previousQuantity} to {consumable.QuantityOnHand}. Reason: {model.Reason}");
+
             return RedirectToAction(nameof(Consumables));
         }
+
 
         #endregion
 
@@ -648,14 +723,37 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSupplier(int id)
         {
+            // Guard 1: don't orphan active consumables that are still sourced from this supplier
+            bool hasActiveConsumables = await _context.Consumables
+                .AnyAsync(c => c.SupplierId == id && c.Status == Status.Active);
+            if (hasActiveConsumables)
+            {
+                SetError("This supplier has one or more active consumables assigned and cannot be deactivated.");
+                return RedirectToAction(nameof(Suppliers));
+            }
+
+            // Guard 2: don't deactivate a supplier with an order still outstanding
+            bool hasOpenOrders = await _context.Orders
+                .AnyAsync(o => o.SupplierId == id
+                             && o.Status == Status.Active
+                             && (o.OrderStatus == OrderStatus.Ordered || o.OrderStatus == OrderStatus.PartiallyComplete));
+            if (hasOpenOrders)
+            {
+                SetError("This supplier has one or more outstanding orders and cannot be deactivated until those orders are completed or cancelled.");
+                return RedirectToAction(nameof(Suppliers));
+            }
+
             var supplier = await _context.Suppliers.FindAsync(id);
             if (supplier != null)
             {
                 supplier.Status = Status.Inactive;
                 await _context.SaveChangesAsync();
+                SetSuccess("Supplier deactivated successfully.");
             }
             return RedirectToAction(nameof(Suppliers));
         }
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -714,8 +812,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .FirstOrDefaultAsync(s => s.Id == model.SupplierId && s.Status == Status.Active);
             if (supplier == null) return NotFound();
 
-            string orderNumber = "ORD-" + DateTime.Now.ToString("yyyyMMdd") + "-"
-                                 + Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
+            string orderNumber = await GenerateUniqueOrderNumberAsync();
 
             var order = new Order
             {
@@ -752,8 +849,11 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 await _emailService.SendEmailAsync(supplier.EmailAddress, $"New Order #{orderNumber}", body);
             }
 
+            SetSuccess($"Order #{orderNumber} created successfully.");
             return RedirectToAction(nameof(Orders));
         }
+
+
 
 
         public async Task<IActionResult> Orders()
@@ -1382,6 +1482,201 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
         #endregion
 
+
+        #region Sample Types (Soft Delete + Restore)
+
+        public async Task<IActionResult> SampleTypes()
+        {
+            var sampleTypes = await _context.SampleTypes
+                .Where(st => st.Status == Status.Active)
+                .ToListAsync();
+            return View(sampleTypes);
+        }
+
+        public async Task<IActionResult> InactiveSampleTypes()
+        {
+            var sampleTypes = await _context.SampleTypes
+                .Where(st => st.Status == Status.Inactive)
+                .ToListAsync();
+            return View(sampleTypes);
+        }
+
+        [HttpGet]
+        public IActionResult CreateSampleType() => View(new SampleTypeViewModel());
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateSampleType(SampleTypeViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            // ✅ Uniqueness check
+            bool nameExists = await _context.SampleTypes
+                .AnyAsync(st => st.Name == model.Name);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.Name), "A sample type with this name already exists.");
+                return View(model);
+            }
+
+            var sampleType = new SampleType
+            {
+                Name = model.Name,
+                Status = Status.Active
+            };
+            _context.SampleTypes.Add(sampleType);
+            await _context.SaveChangesAsync();
+
+            SetSuccess("Sample type created successfully.");
+            return RedirectToAction(nameof(SampleTypes));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EditSampleType(int id)
+        {
+            var sampleType = await _context.SampleTypes.FindAsync(id);
+            if (sampleType == null) return NotFound();
+
+            var model = new SampleTypeViewModel
+            {
+                Id = sampleType.Id,
+                Name = sampleType.Name
+            };
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditSampleType(SampleTypeViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var sampleType = await _context.SampleTypes.FindAsync(model.Id);
+            if (sampleType == null) return NotFound();
+
+            // ✅ Uniqueness check (exclude self)
+            bool nameExists = await _context.SampleTypes
+                .AnyAsync(st => st.Name == model.Name && st.Id != model.Id);
+            if (nameExists)
+            {
+                ModelState.AddModelError(nameof(model.Name), "A sample type with this name already exists.");
+                return View(model);
+            }
+
+            sampleType.Name = model.Name;
+            sampleType.Status = Status.Active;
+            await _context.SaveChangesAsync();
+
+            SetSuccess("Sample type updated successfully.");
+            return RedirectToAction(nameof(SampleTypes));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteSampleType(int id)
+        {
+            // Guard: don't let a manager silently orphan test types that reference this sample type
+            bool inUse = await _context.TestTypes
+                .AnyAsync(t => t.SampleTypeId == id && t.Status == Status.Active);
+            if (inUse)
+            {
+                SetError("This sample type is used by one or more active test types and cannot be deactivated.");
+                return RedirectToAction(nameof(SampleTypes));
+            }
+
+            var sampleType = await _context.SampleTypes.FindAsync(id);
+            if (sampleType != null)
+            {
+                sampleType.Status = Status.Inactive;
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(SampleTypes));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RestoreSampleType(int id)
+        {
+            var sampleType = await _context.SampleTypes.FindAsync(id);
+            if (sampleType != null)
+            {
+                sampleType.Status = Status.Active;
+                await _context.SaveChangesAsync();
+            }
+            return RedirectToAction(nameof(InactiveSampleTypes));
+        }
+
+        #endregion
+
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkOrderItemReceived(int orderItemId)
+        {
+            var orderItem = await _context.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Consumable)
+                .FirstOrDefaultAsync(oi => oi.Id == orderItemId && oi.Status == Status.Active);
+
+            if (orderItem == null)
+            {
+                SetError("Order item not found.");
+                return RedirectToAction(nameof(Orders));
+            }
+
+            if (orderItem.OrderItemStatus != OrderItemStatus.Ordered)
+            {
+                SetError($"This item is already marked as {orderItem.OrderItemStatus} and cannot be received again.");
+                return RedirectToAction(nameof(Orders));
+            }
+
+            var order = orderItem.Order;
+            if (order == null || order.Status != Status.Active)
+            {
+                SetError("The parent order could not be found or is inactive.");
+                return RedirectToAction(nameof(Orders));
+            }
+
+            if (order.OrderStatus == OrderStatus.Cancelled)
+            {
+                SetError("Cannot receive items on a cancelled order.");
+                return RedirectToAction(nameof(Orders));
+            }
+
+            // Receive this item only
+            orderItem.OrderItemStatus = OrderItemStatus.Received;
+            orderItem.DateReceived = DateTime.Now;
+
+            if (orderItem.Consumable != null)
+            {
+                orderItem.Consumable.QuantityOnHand += orderItem.QuantityOrdered;
+            }
+
+            // Recompute the parent order's status based on all of its items
+            var allItems = await _context.OrderItems
+                .Where(oi => oi.OrderId == order.Id && oi.Status == Status.Active)
+                .ToListAsync();
+
+            if (allItems.All(i => i.OrderItemStatus == OrderItemStatus.Received))
+            {
+                order.OrderStatus = OrderStatus.Complete;
+                order.DateCompleted = DateTime.Now;
+            }
+            else if (allItems.Any(i => i.OrderItemStatus == OrderItemStatus.Received))
+            {
+                order.OrderStatus = OrderStatus.PartiallyComplete;
+            }
+            // If none received yet (shouldn't happen here since we just received one),
+            // status stays as-is.
+
+            await _context.SaveChangesAsync();
+
+            SetSuccess($"'{orderItem.Consumable?.ConsumableName}' marked as received. Stock updated.");
+            return RedirectToAction(nameof(Orders));
+        }
+
+
         #region Reports
 
         [HttpGet]
@@ -1433,5 +1728,35 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         }
 
         #endregion
+
+        private async Task<string> GenerateUniqueOrderNumberAsync()
+        {
+            const int maxAttempts = 5;
+            string orderNumber;
+            bool exists;
+            int attempts = 0;
+
+            do
+            {
+                orderNumber = "ORD-" + DateTime.Now.ToString("yyyyMMdd") + "-"
+                             + Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
+
+                exists = await _context.Orders.AnyAsync(o => o.OrderNumber == orderNumber);
+                attempts++;
+
+                if (attempts >= maxAttempts && exists)
+                {
+                    // Vanishingly unlikely, but fall back to a fragment long enough
+                    // that collision is practically impossible, and stop looping.
+                    orderNumber = "ORD-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-"
+                                 + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+                    exists = await _context.Orders.AnyAsync(o => o.OrderNumber == orderNumber);
+                }
+            }
+            while (exists && attempts < maxAttempts);
+
+            return orderNumber;
+        }
+
     }
 }

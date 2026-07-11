@@ -21,5 +21,7 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public string Action { get; set; } = string.Empty; // "Verified", "Returned", "Resubmitted"
 
         public string? Notes { get; set; }
+
+        public DateTime? ActionDate { get; set; } = DateTime.Now;
     }
 }

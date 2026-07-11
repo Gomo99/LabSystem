@@ -20,13 +20,13 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         private readonly LabDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IPdfReportService _pdfService;
-
-        // Standardized TempData keys
-        private const string SuccessMessageKey = "SuccessMessage";
-        private const string ErrorMessageKey = "ErrorMessage";
         private readonly INotificationService _notificationService;
 
-        public DoctorController(LabDbContext context, IEmailService emailService, IPdfReportService pdfService, INotificationService notificationService)
+        private const string SuccessMessageKey = "SuccessMessage";
+        private const string ErrorMessageKey = "ErrorMessage";
+
+        public DoctorController(LabDbContext context, IEmailService emailService,
+                                IPdfReportService pdfService, INotificationService notificationService)
         {
             _context = context;
             _emailService = emailService;
@@ -34,18 +34,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _notificationService = notificationService;
         }
 
-        // ======================================================================
-        //  HELPER METHODS (CLEAN + REUSABLE)
-        // ======================================================================
-        private void SetSuccess(string message)
-        {
-            TempData[SuccessMessageKey] = message;
-        }
-
-        private void SetError(string message)
-        {
-            TempData[ErrorMessageKey] = message;
-        }
+        private void SetSuccess(string message) => TempData[SuccessMessageKey] = message;
+        private void SetError(string message) => TempData[ErrorMessageKey] = message;
 
         public IActionResult DashBoard() => View();
 
@@ -144,6 +134,9 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             }
 
             string tempPassword = GenerateRandomPassword();
+            if (!IsPasswordComplex(tempPassword))
+                tempPassword = GenerateRandomPassword();
+
             var patient = new Patient
             {
                 FirstName = model.FirstName,
@@ -161,6 +154,15 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             };
 
             _context.Patients.Add(patient);
+            await _context.SaveChangesAsync();
+
+            if (!string.IsNullOrWhiteSpace(model.MedicalConditionsInput))
+                await UpdatePatientMedicalHistory(patient, model.MedicalConditionsInput, "condition");
+            if (!string.IsNullOrWhiteSpace(model.AllergiesInput))
+                await UpdatePatientMedicalHistory(patient, model.AllergiesInput, "allergy");
+            if (!string.IsNullOrWhiteSpace(model.MedicationsInput))
+                await UpdatePatientMedicalHistory(patient, model.MedicationsInput, "medication");
+
             await _context.SaveChangesAsync();
 
             await _emailService.SendEmailAsync(patient.Email, "Your NMB-HLabSys Patient Account",
@@ -314,16 +316,28 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var patient = await _context.Patients.FindAsync(id);
-            if (patient != null)
-            {
-                patient.IsActive = Status.Inactive;
-                await _context.SaveChangesAsync();
-                SetSuccess("Patient deactivated.");
-            }
-            else
+            if (patient == null)
             {
                 SetError("Patient not found.");
+                return RedirectToAction(nameof(Patients));
             }
+
+            // Guard: don't deactivate if there are any active (non‑cancelled/completed) test requests
+            bool hasActiveRequests = await _context.TestRequests.AnyAsync(tr =>
+                tr.PatientId == id &&
+                tr.RecordStatus == Status.Active &&
+                tr.RequestStatus != RequestStatus.Cancelled &&
+                tr.RequestStatus != RequestStatus.Completed &&
+                tr.RequestStatus != RequestStatus.ReleasedByDoctor);
+            if (hasActiveRequests)
+            {
+                SetError("Cannot deactivate patient with active test requests. Please resolve those first.");
+                return RedirectToAction(nameof(Patients));
+            }
+
+            patient.IsActive = Status.Inactive;
+            await _context.SaveChangesAsync();
+            SetSuccess("Patient deactivated.");
             return RedirectToAction(nameof(Patients));
         }
 
@@ -366,9 +380,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         #endregion
 
         #region Create Test Request
-        // ======================================================================
-        //  MISSING FEATURE: Create Test Request
-        // ======================================================================
 
         [HttpGet]
         public async Task<IActionResult> CreateTestRequest()
@@ -386,7 +397,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateTestRequest(EditTestRequestViewModel model)
         {
-            // --- Validation: at least one test type and one sample ---
             if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
             {
                 ModelState.AddModelError("SelectedTestTypeIds", "At least one test type must be selected.");
@@ -401,7 +411,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // --- Barcode uniqueness ---
             var barcodes = model.Samples.Select(s => s.Barcode).ToList();
             if (barcodes.Distinct().Count() != barcodes.Count)
             {
@@ -427,7 +436,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
             }
 
-            // --- Create the TestRequest entity ---
             int doctorId = GetCurrentDoctorId();
             var testRequest = new TestRequest
             {
@@ -440,7 +448,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 RecordStatus = Status.Active
             };
 
-            // Add test types
             foreach (var ttId in model.SelectedTestTypeIds)
             {
                 testRequest.TestRequestTestTypes.Add(new TestRequestTestType
@@ -450,7 +457,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 });
             }
 
-            // Add samples
             foreach (var sampleVm in model.Samples)
             {
                 testRequest.Samples.Add(new Sample
@@ -464,7 +470,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             _context.TestRequests.Add(testRequest);
             await _context.SaveChangesAsync();
 
-            // --- Notify patient via email ---
             var patient = await _context.Patients.FindAsync(model.PatientId);
             if (patient != null)
             {
@@ -614,10 +619,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return RedirectToAction(nameof(RequestDetails), new { id = model.Id });
             }
 
-            async Task Repopulate()
-            {
-                await PopulateTestRequestDropdowns();
-            }
+            async Task Repopulate() => await PopulateTestRequestDropdowns();
 
             if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
             {
@@ -687,7 +689,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             }
 
             await _context.SaveChangesAsync();
-
             SetSuccess("Test request updated successfully.");
             return RedirectToAction(nameof(RequestDetails), new { id = request.Id });
         }
@@ -701,10 +702,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Active);
 
             if (request == null) return NotFound();
-
             request.RecordStatus = Status.Inactive;
             await _context.SaveChangesAsync();
-
             SetSuccess("Test request deleted.");
             return RedirectToAction(nameof(TestRequests));
         }
@@ -740,10 +739,8 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 .FirstOrDefaultAsync(tr => tr.Id == id && tr.DoctorId == doctorId && tr.RecordStatus == Status.Inactive);
 
             if (request == null) return NotFound();
-
             request.RecordStatus = Status.Active;
             await _context.SaveChangesAsync();
-
             SetSuccess("Test request restored.");
             return RedirectToAction(nameof(InactiveTestRequests));
         }
@@ -790,11 +787,18 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
 
             if (request.Patient != null)
             {
+                byte[]? pdfBytes = null;
+                try { pdfBytes = await _pdfService.GenerateTestResultsPdf(id); } catch { }
+
                 string message = $"Dear {request.Patient.FirstName},\n\n" +
                                  $"Your test results for request dated {request.RequestDate:dd/MM/yyyy} are now available.\n" +
                                  $"Please log in to the patient portal to view them.\n\n" +
                                  $"Thank you.";
-                await _emailService.SendEmailAsync(request.Patient.Email, "Your Test Results Are Ready", message);
+
+                if (pdfBytes != null)
+                    await _emailService.SendEmailWithAttachmentAsync(request.Patient.Email, "Your Test Results Are Ready", message, pdfBytes, $"TestResults_{id}.pdf");
+                else
+                    await _emailService.SendEmailAsync(request.Patient.Email, "Your Test Results Are Ready", message);
             }
 
             SetSuccess("Results released to patient.");
@@ -806,9 +810,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         public async Task<IActionResult> ReleaseResults(ReleaseResultsViewModel model)
         {
             if (!ModelState.IsValid)
-            {
                 return RedirectToAction(nameof(RequestDetails), new { id = model.RequestId });
-            }
 
             int doctorId = GetCurrentDoctorId();
             var request = await _context.TestRequests
@@ -830,22 +832,31 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             string body = $"Dear {request.Patient.FirstName},\n\n{model.Note}\n\n";
 
             if (model.RequestAppointment)
-            {
                 body += "Please contact our office to schedule a follow-up appointment to discuss your results.\n";
-            }
             else
-            {
                 body += "You can view your results in the patient portal.\n";
-            }
 
             if (model.AttachPdf)
             {
                 var pdfBytes = await _pdfService.GenerateTestResultsPdf(model.RequestId);
-                body += "\nA PDF copy of your results is attached.\n";
-                // In production: use MailKit to attach the byte array.
+                if (pdfBytes != null)
+                {
+                    await _emailService.SendEmailWithAttachmentAsync(
+                        request.Patient.Email,
+                        subject,
+                        body,
+                        pdfBytes,
+                        $"TestResults_Request{model.RequestId}.pdf");
+                }
+                else
+                {
+                    await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
+                }
             }
-
-            await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
+            else
+            {
+                await _emailService.SendEmailAsync(request.Patient.Email, subject, body);
+            }
 
             SetSuccess("Results released to patient.");
             return RedirectToAction(nameof(RequestDetails), new { id = model.RequestId });
@@ -1008,8 +1019,7 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
         [HttpGet]
         public IActionResult TestRequestsReport()
         {
-            var model = new DoctorReportFilterViewModel();
-            return View(model);
+            return View(new DoctorReportFilterViewModel());
         }
 
         [HttpPost]
@@ -1020,7 +1030,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 return View(model);
 
             int doctorId = GetCurrentDoctorId();
-
             var pdfBytes = await _pdfService.GenerateDoctorTestRequestsReport(doctorId, model.StartDate, model.EndDate);
 
             if (pdfBytes == null || pdfBytes.Length == 0)
@@ -1183,7 +1192,6 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
                 })
                 .ToListAsync();
 
-            // Group by sample type to avoid duplicates
             var required = sampleTypes
                 .GroupBy(x => x.SampleTypeId)
                 .Select(g => new {

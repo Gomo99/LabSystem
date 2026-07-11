@@ -46,5 +46,15 @@ namespace LaboratoryTestRequestManagementSystem.ViewModel
         [Display(Name = "Confirm Password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        // --------------- NEW FIELDS for medical history ---------------
+        [Display(Name = "Medical Conditions (comma separated)")]
+        public string? MedicalConditionsInput { get; set; }
+
+        [Display(Name = "Allergies (comma separated)")]
+        public string? AllergiesInput { get; set; }
+
+        [Display(Name = "Medications (comma separated)")]
+        public string? MedicationsInput { get; set; }
     }
 }
