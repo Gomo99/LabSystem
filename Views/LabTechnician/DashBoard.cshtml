@@ -13,9 +13,23 @@
     </div>
 </div>
 
-<!-- Filter Panel -->
+<!-- Search & Filter Panel -->
 <div class="card">
     <form method="get" asp-action="Dashboard" class="row g-3">
+        <!-- Search Row -->
+        <div class="col-md-4">
+            <label class="form-label">Patient Name</label>
+            <input type="text" name="searchPatientName" class="form-control" placeholder="Search patient..." value="@Model.SearchPatientName" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Barcode</label>
+            <input type="text" name="searchBarcode" class="form-control" placeholder="Barcode..." value="@Model.SearchBarcode" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Doctor</label>
+            <input type="text" name="searchDoctorName" class="form-control" placeholder="Doctor..." value="@Model.SearchDoctorName" />
+        </div>
+        <!-- Existing filters -->
         <div class="col-md-3">
             <label class="form-label">Urgency</label>
             <select name="filterUrgency" class="form-select" asp-items="Model.UrgencyOptions">
@@ -73,9 +87,34 @@
         <div class="stat-icon warn"><i class="fas fa-hourglass-end"></i></div>
         <div><div class="stat-val">@Model.NearingLimitCount</div><div class="stat-label">Nearing Limit</div></div>
     </div>
+    <!-- NEW: Daily completed -->
+    <div class="stat-card">
+        <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
+        <div><div class="stat-val">@Model.TodayCompletedTestsCount</div><div class="stat-label">Completed Today</div></div>
+    </div>
 </div>
 
-<!-- Tabs for Detailed Lists -->
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <h5 class="card-header">Workload – Last 7 Days</h5>
+            <div class="card-body">
+                <canvas id="workloadChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header">Test Status Breakdown</h5>
+            <div class="card-body">
+                <canvas id="statusPieChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Detailed Lists (unchanged) -->
 <ul class="nav nav-tabs" id="dashboardTabs" role="tablist" style="border-bottom:1px solid var(--border-soft);margin-bottom:20px;">
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="selected-tab" data-bs-toggle="tab" data-bs-target="#selected" type="button" style="background:transparent;color:var(--teal);border:none;">My Tests</button>
@@ -177,5 +216,56 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Workload bar chart
+        const ctx1 = document.getElementById('workloadChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.WorkloadChartLabels)),
+                datasets: [{
+                    label: 'Tests Completed',
+                    data: @Html.Raw(Json.Serialize(Model.WorkloadChartData)),
+                    backgroundColor: 'rgba(0, 128, 128, 0.6)',
+                    borderColor: 'rgba(0, 128, 128, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+
+        // Status pie chart
+        const ctx2 = document.getElementById('statusPieChart').getContext('2d');
+        const statusData = @Html.Raw(Json.Serialize(Model.StatusDistribution));
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(statusData),
+                datasets: [{
+                    data: Object.values(statusData),
+                    backgroundColor: [
+                        '#008080', '#ff6384', '#ffcd56', '#4bc0c0', '#9966ff', '#ff9f40', '#c9cbcf'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(function () {
+            location.reload();
+        }, 30000);
+    </script>
 }

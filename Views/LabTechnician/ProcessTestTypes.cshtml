@@ -70,9 +70,11 @@
                         <th>Assigned To</th>
                         <th>Started</th>
                         <th>Expected</th>
+                        <th>Remaining</th> <!-- NEW -->
                         <th>Completed</th>
                         <th>Verified By</th>
-                        <th style="width:200px;">Actions</th>
+                        <th>Notes</th> <!-- NEW -->
+                        <th style="width:220px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,25 +86,36 @@
                             <td>@test.Status</td>
                             <td>@(test.TechnicianName ?? "—")</td>
                             <td>@(test.StartDateTime?.ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td>@(test.ExpectedCompletionTime?.ToString("dd/MM HH:mm") ?? "—")</td>
                             <td>
-                                @if (test.ExpectedCompletionTime.HasValue)
+                                @test.RemainingTimeDisplay
+                                @if (test.IsPaused)
                                 {
-                                    <span>@test.ExpectedCompletionTime.Value.ToString("dd/MM HH:mm")</span>
-                                    @if (test.IsOverdue)
-                                    {
-                                        <span class="badge badge-danger">OVERDUE</span>
-                                    }
-                                }
-                                else
-                                {
-                                    <span>—</span>
+                                    <span class="badge badge-warn">PAUSED</span>
                                 }
                             </td>
                             <td>@(test.CompletionDateTime?.ToString("dd/MM HH:mm") ?? "—")</td>
                             <td>@(test.VerifiedByName ?? "—")</td>
                             <td>
+                                @if (test.CanComplete || test.CanPause || test.CanResume)
+                                {
+                                    <input type="text" class="form-control form-control-sm technician-notes"
+                                           data-testrequestid="@test.TestRequestId" data-testtypeid="@test.TestTypeId"
+                                           value="@test.TechnicianNotes" placeholder="Add note..."
+                                           style="width:120px; display:inline-block;" />
+                                    <button class="btn btn-ghost btn-sm save-notes-btn"
+                                            data-testrequestid="@test.TestRequestId" data-testtypeid="@test.TestTypeId">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                }
+                                else
+                                {
+                                    @test.TechnicianNotes
+                                }
+                            </td>
+                            <td>
                                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                    @if (test.CanStart)
+                                    @if (test.Status == RequestStatus.Submitted && test.TechnicianId == null)
                                     {
                                         <form asp-action="StartTest" method="post">
                                             <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
@@ -110,7 +123,23 @@
                                             <button type="submit" class="btn btn-success btn-sm">Start</button>
                                         </form>
                                     }
-                                    else if (test.CanComplete)
+                                    @if (test.CanPause)
+                                    {
+                                        <form asp-action="PauseTest" method="post" style="display:inline;">
+                                            <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                                            <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                                            <button type="submit" class="btn btn-warning btn-sm">Pause</button>
+                                        </form>
+                                    }
+                                    @if (test.CanResume)
+                                    {
+                                        <form asp-action="ResumeTest" method="post" style="display:inline;">
+                                            <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
+                                            <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
+                                            <button type="submit" class="btn btn-info btn-sm">Resume</button>
+                                        </form>
+                                    }
+                                    @if (test.CanComplete)
                                     {
                                         <a asp-action="CaptureResult" asp-route-testRequestId="@test.TestRequestId" asp-route-testTypeId="@test.TestTypeId" class="btn btn-primary btn-sm">Capture Results</a>
                                     }
@@ -146,14 +175,18 @@
     }
 </div>
 
+
+
+
 <!-- Modals for each test -->
 @foreach (var test in Model.TestTypes)
 {
     <!-- Verify Modal -->
+    <!-- Inside the loop for each test in ProcessTestTypes.cshtml -->
     <div class="modal fade" id="verifyModal-@test.TestTypeId" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background:var(--navy-mid);border:1px solid var(--border);border-radius:20px;">
-                <form asp-action="VerifyTest" method="post">
+                <form asp-action="VerifyTest" method="post" id="verifyForm-@test.TestTypeId">
                     <input type="hidden" name="testRequestId" value="@test.TestRequestId" />
                     <input type="hidden" name="testTypeId" value="@test.TestTypeId" />
                     <div class="modal-header">
@@ -161,11 +194,48 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <textarea name="verificationNotes" class="form-control" rows="3" placeholder="Verification notes (optional)"></textarea>
+                        <!-- Verification Checklist -->
+                        <h6 style="color:var(--white); margin-bottom:10px;">Verification Checklist</h6>
+                        <div class="form-check">
+                            <input class="form-check-input checklist-item" type="checkbox" name="selectedChecklistItems" value="Result within normal range" id="check1-@test.TestTypeId" />
+                            <label class="form-check-label" for="check1-@test.TestTypeId">Result within normal range</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input checklist-item" type="checkbox" name="selectedChecklistItems" value="No critical flags" id="check2-@test.TestTypeId" />
+                            <label class="form-check-label" for="check2-@test.TestTypeId">No critical flags</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input checklist-item" type="checkbox" name="selectedChecklistItems" value="Sample quality acceptable" id="check3-@test.TestTypeId" />
+                            <label class="form-check-label" for="check3-@test.TestTypeId">Sample quality acceptable</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input checklist-item" type="checkbox" name="selectedChecklistItems" value="Test method followed" id="check4-@test.TestTypeId" />
+                            <label class="form-check-label" for="check4-@test.TestTypeId">Test method followed</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input checklist-item" type="checkbox" name="selectedChecklistItems" value="Documentation complete" id="check5-@test.TestTypeId" />
+                            <label class="form-check-label" for="check5-@test.TestTypeId">Documentation complete</label>
+                        </div>
+
+                        <hr style="border-color:var(--border);" />
+
+                        <!-- Verification Notes -->
+                        <div class="form-group">
+                            <label class="form-label" style="color:var(--white);">Verification Notes</label>
+                            <textarea name="verificationNotes" class="form-control" rows="3" placeholder="Optional notes"></textarea>
+                        </div>
+
+                        <!-- Digital Signature -->
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="digitalSignature" value="true" id="sign-@test.TestTypeId" />
+                            <label class="form-check-label" for="sign-@test.TestTypeId" style="color:var(--white);">
+                                I, <strong>@User.Identity?.Name</strong>, certify that I have reviewed the results and verified the test.
+                            </label>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-info btn-sm">Confirm</button>
+                        <button type="submit" class="btn btn-info btn-sm" id="submitVerify-@test.TestTypeId" disabled>Verify</button>
                     </div>
                 </form>
             </div>
@@ -243,4 +313,25 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+         $(function () {
+            // For each verify modal, monitor checkboxes
+            $('[id^=verifyModal-]').each(function () {
+                var modalId = $(this).attr('id');
+                var testTypeId = modalId.split('-')[1]; // extract testTypeId
+                var form = $('#verifyForm-' + testTypeId);
+                var submitBtn = $('#submitVerify-' + testTypeId);
+                var checkboxes = form.find('.checklist-item');
+                var signatureCheck = $('#sign-' + testTypeId);
+
+                function updateSubmit() {
+                    var allChecklistChecked = checkboxes.length > 0 && checkboxes.filter(':checked').length > 0;
+                    var isSigned = signatureCheck.is(':checked');
+                    submitBtn.prop('disabled', !(allChecklistChecked && isSigned));
+                }
+
+                checkboxes.on('change', updateSubmit);
+                signatureCheck.on('change', updateSubmit);
+            });
+        });
 }

@@ -12,6 +12,7 @@ namespace LaboratoryTestRequestManagementSystem.Data
         // Core user tables
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Patient> Patients { get; set; }
+        public DbSet<ConsumableUsageHistory> ConsumableUsageHistories { get; set; }
         public DbSet<UserDevice> UserDevices { get; set; }
         // Data/LabDbContext.cs – inside the class
         public DbSet<ReportAccessRequest> ReportAccessRequests { get; set; }

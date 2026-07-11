@@ -19,5 +19,8 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public Status Status { get; set; } = Status.Active;
         public ICollection<TestTypeConsumable> TestTypeConsumables { get; set; } = new List<TestTypeConsumable>();
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+        // Inside Consumable.cs, add this property
+        public int? LowStockThreshold { get; set; } // if null, default to 5
     }
 }

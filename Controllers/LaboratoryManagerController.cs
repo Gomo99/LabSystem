@@ -1758,5 +1758,55 @@ namespace LaboratoryTestRequestManagementSystem.Controllers
             return orderNumber;
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> NotifyOverdueTests()
+        {
+            var now = DateTime.Now;
+
+            // Find all in‑progress tests that are overdue (not paused, past expected completion)
+            var overdueTests = await _context.TestRequestTestTypes
+                .Include(trt => trt.TestRequest).ThenInclude(tr => tr.Patient)
+                .Include(trt => trt.TestType)
+                .Where(trt => trt.RequestStatus == RequestStatus.InProgress
+                              && trt.StartDateTime.HasValue
+                              && !trt.IsPaused
+                              && now > trt.StartDateTime.Value
+                                        .AddMinutes(trt.TestType.TurnaroundTimeMinutes)
+                                        .Add(trt.AccumulatedPauseTime))
+                .ToListAsync();
+
+            if (!overdueTests.Any())
+            {
+                SetSuccess("No overdue tests found.");
+                return RedirectToAction(nameof(DashBoard));
+            }
+
+            // Get all lab managers (assuming Role "LabManager" – adjust if needed)
+            var managers = await _context.Employees
+                .Where(e => e.Role == UserRole.LaboratoryManager && e.IsActive == Status.Active)
+                .ToListAsync();
+
+            foreach (var test in overdueTests)
+            {
+                foreach (var manager in managers)
+                {
+                    await _notificationService.CreateAsync(
+                        manager.Id,
+                        "LabManager",
+                        $"Overdue Test: {test.TestType.TestName} for patient {test.TestRequest.Patient?.FirstName} " +
+                        $"in request #{test.TestRequestId}. Expected completion was " +
+                        $"{test.StartDateTime!.Value.AddMinutes(test.TestType.TurnaroundTimeMinutes).Add(test.AccumulatedPauseTime):g}.",
+                        $"/LabTechnician/ProcessTestTypes?requestId={test.TestRequestId}"
+                    );
+                }
+            }
+
+            SetSuccess($"Sent overdue alerts for {overdueTests.Count} test(s) to {managers.Count} manager(s).");
+            return RedirectToAction(nameof(DashBoard));
+        }
+
+
+
     }
 }

@@ -23,5 +23,12 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public string? Notes { get; set; }
 
         public DateTime? ActionDate { get; set; } = DateTime.Now;
+
+        // TestReviewHistory.cs
+        public string? VerificationChecklistJson { get; set; }
+
+        public string? ResultChangeJson { get; set; }
+
+
     }
 }

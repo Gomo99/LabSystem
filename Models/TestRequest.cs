@@ -32,5 +32,7 @@ namespace LaboratoryTestRequestManagementSystem.Models
         // Navigation properties
         public ICollection<TestRequestTestType> TestRequestTestTypes { get; set; } = new List<TestRequestTestType>();
         public ICollection<Sample> Samples { get; set; } = new List<Sample>();
+
+
     }
 }

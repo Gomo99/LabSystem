@@ -50,5 +50,19 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public ICollection<PatientAllergy> PatientAllergies { get; set; } = new List<PatientAllergy>();
         public ICollection<PatientMedication> PatientMedications { get; set; } = new List<PatientMedication>();
         public ICollection<DoctorPatientAccess> DoctorAccessGrants { get; set; } = new List<DoctorPatientAccess>();
+
+
+        // Models/Patient.cs
+        [StringLength(5)]
+        public string? BloodGroup { get; set; }          // e.g., A+, O-, etc.
+
+        [StringLength(100)]
+        public string? EmergencyContactName { get; set; }
+
+        [StringLength(20)]
+        public string? EmergencyContactNumber { get; set; }
+
+        public ICollection<TestRequest> TestRequests { get; set; } = new List<TestRequest>();
+
     }
 }

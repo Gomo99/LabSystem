@@ -1,4 +1,5 @@
-﻿using LaboratoryTestRequestManagementSystem.AppStatus;
+﻿// TestRequestTestType.cs
+using LaboratoryTestRequestManagementSystem.AppStatus;
 
 namespace LaboratoryTestRequestManagementSystem.Models
 {
@@ -19,11 +20,24 @@ namespace LaboratoryTestRequestManagementSystem.Models
         public DateTime? StartDateTime { get; set; }
         public DateTime? CompletionDateTime { get; set; }
 
-        // ✅ Verification fields
+        // Verification fields
         public int? VerifiedById { get; set; }
         public Employee? VerifiedBy { get; set; }
         public DateTime? VerifiedDateTime { get; set; }
         public string? VerificationNotes { get; set; }
-        public string? ReviewNotes { get; set; } // Notes from original technician when resubmitting
+        public string? ReviewNotes { get; set; }
+
+        // ✅ NEW: Pause / Resume
+        public bool IsPaused { get; set; }
+        public DateTime? PausedAt { get; set; }
+        public TimeSpan AccumulatedPauseTime { get; set; }   // total paused time so far
+
+        // ✅ NEW: Technician notes during processing
+        public string? TechnicianNotes { get; set; }
+
+
+        // TestRequestTestType.cs
+        public bool IsDigitallySigned { get; set; }
+        public DateTime? SignedAt { get; set; }
     }
 }
